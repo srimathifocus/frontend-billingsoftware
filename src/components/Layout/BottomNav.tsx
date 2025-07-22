@@ -1,5 +1,11 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Image, FolderTree, Package, Zap } from "lucide-react";
+import {
+  LayoutDashboard,
+  CreditCard,
+  Banknote,
+  Users,
+  TrendingUp,
+} from "lucide-react";
 import { colors, themeConfig } from "../../theme/colors";
 
 const navItems = [
@@ -9,24 +15,24 @@ const navItems = [
     label: "Dashboard",
   },
   {
-    path: "/quick-shopping",
-    icon: Zap,
-    label: "Quick Shop",
+    path: "/billing/create",
+    icon: CreditCard,
+    label: "Billing",
   },
   {
-    path: "/banners",
-    icon: Image,
-    label: "Banners",
+    path: "/loans/active",
+    icon: Banknote,
+    label: "Loans",
   },
   {
-    path: "/categories",
-    icon: FolderTree,
-    label: "Categories",
+    path: "/customers",
+    icon: Users,
+    label: "Customers",
   },
   {
-    path: "/products",
-    icon: Package,
-    label: "Products",
+    path: "/transactions",
+    icon: TrendingUp,
+    label: "Transactions",
   },
 ];
 

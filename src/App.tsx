@@ -15,13 +15,22 @@ import { Layout } from "./components/Layout/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { BannersPage } from "./pages/BannersPage";
-import { CategoriesPage } from "./pages/CategoriesPage";
-import { ProductsPage } from "./pages/ProductsPage";
-import { ProductDetailPage } from "./pages/ProductDetailPage";
-import { QuickShoppingPage } from "./pages/QuickShoppingPageSimple";
-import { QuickShoppingViewPage } from "./pages/QuickShoppingViewPage";
-import { QuickShoppingTableView } from "./pages/QuickShoppingTableView";
+import { CreateBillingPage } from "./pages/CreateBillingPage";
+import { ActiveLoansPage } from "./pages/ActiveLoansPage";
+import { InactiveLoansPage } from "./pages/InactiveLoansPage";
+import { LoanDetailPage } from "./pages/LoanDetailPage";
+import { RepaymentPage } from "./pages/RepaymentPage";
+import { TransactionsPage } from "./pages/TransactionsPage";
+import { ItemManagementPage } from "./pages/ItemManagementPage";
+import { CustomerManagementPage } from "./pages/CustomerManagementPage";
+import { ManagerOnboardingPage } from "./pages/ManagerOnboardingPage";
+import { ManagerListPage } from "./pages/ManagerListPage";
+import { TransactionReportPage } from "./pages/TransactionReportPage";
+import { AuditReportPage } from "./pages/AuditReportPage";
+import { ShopDetailsPage } from "./pages/ShopDetailsPage";
+import { ExpenseManagementPage } from "./pages/ExpenseManagementPage";
+import { BalanceSheetPage } from "./pages/BalanceSheetPage";
+import { AdminProfilePage } from "./pages/AdminProfilePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,129 +80,198 @@ function App() {
                 />
 
                 <Route
-                  path="/banners/*"
+                  path="/billing/create"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <BannersPage />
+                        <CreateBillingPage />
                       </Layout>
                     </PrivateRoute>
                   }
                 />
 
                 <Route
-                  path="/categories/*"
+                  path="/loans/active"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <ErrorBoundary
-                          fallback={
-                            <div className="p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                              <h2 className="text-xl font-semibold text-red-700 dark:text-red-400 mb-2">
-                                Categories Page Error
-                              </h2>
-                              <p className="text-red-600 dark:text-red-300 mb-4">
-                                There was a problem loading the categories data.
-                                This might be due to a server issue or data
-                                format problem.
-                              </p>
-                              <div className="flex space-x-4">
-                                <button
-                                  onClick={() => window.location.reload()}
-                                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                                >
-                                  Reload Page
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    (window.location.href = "/dashboard")
-                                  }
-                                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                                >
-                                  Go to Dashboard
-                                </button>
-                              </div>
-                            </div>
-                          }
-                        >
-                          <CategoriesPage />
-                        </ErrorBoundary>
-                      </Layout>
-                    </PrivateRoute>
-                  }
-                />
-
-                {/* Redirect /subcategories to /categories?view=subcategories */}
-                <Route
-                  path="/subcategories/*"
-                  element={
-                    <PrivateRoute>
-                      <Navigate to="/categories?view=subcategories" replace />
-                    </PrivateRoute>
-                  }
-                />
-
-                <Route
-                  path="/products"
-                  element={
-                    <PrivateRoute>
-                      <Layout>
-                        <ProductsPage />
+                        <ActiveLoansPage />
                       </Layout>
                     </PrivateRoute>
                   }
                 />
 
                 <Route
-                  path="/products/:id"
+                  path="/loans/inactive"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <ProductDetailPage />
+                        <InactiveLoansPage />
                       </Layout>
                     </PrivateRoute>
                   }
                 />
 
                 <Route
-                  path="/quick-shopping"
+                  path="/loans/:id"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <QuickShoppingPage />
+                        <LoanDetailPage />
                       </Layout>
                     </PrivateRoute>
                   }
                 />
 
                 <Route
-                  path="/quick-shopping-view"
+                  path="/repayment"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <QuickShoppingViewPage />
+                        <RepaymentPage />
                       </Layout>
                     </PrivateRoute>
                   }
                 />
 
                 <Route
-                  path="/quick-shopping/view"
+                  path="/repayment/:loanId"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <QuickShoppingViewPage />
+                        <RepaymentPage />
                       </Layout>
                     </PrivateRoute>
                   }
                 />
 
                 <Route
-                  path="/quick-shopping-table"
+                  path="/transactions"
                   element={
                     <PrivateRoute>
                       <Layout>
-                        <QuickShoppingTableView />
+                        <TransactionsPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/profile"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <AdminProfilePage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/items"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <ItemManagementPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/customers"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <CustomerManagementPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/managers"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <ManagerOnboardingPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/managers/create"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <ManagerOnboardingPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/managers/list"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <ManagerListPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/reports/transactions"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <TransactionReportPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/reports/audit"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <AuditReportPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/shop-details"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <ShopDetailsPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/expenses"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <ExpenseManagementPage />
+                      </Layout>
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/balance-sheet"
+                  element={
+                    <PrivateRoute>
+                      <Layout>
+                        <BalanceSheetPage />
                       </Layout>
                     </PrivateRoute>
                   }

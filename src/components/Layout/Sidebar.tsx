@@ -2,18 +2,23 @@ import { useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Image,
-  FolderTree,
-  Package,
+  CreditCard,
+  Banknote,
+  Receipt,
+  TrendingUp,
   ChevronDown,
   ChevronRight,
   Plus,
   List,
-  Tag,
-  Zap,
   Eye,
+  Search,
+  Package,
+  Settings,
+  Users,
+  UserCog,
 } from "lucide-react";
 import { colors, themeConfig } from "../../theme/colors";
+import { useAuth } from "../../hooks/useAuth";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -27,62 +32,54 @@ const menuItems = [
     label: "Dashboard",
   },
   {
-    label: "Quick Shopping",
-    icon: Zap,
-    id: "quick-shopping",
+    label: "Billing",
+    icon: CreditCard,
+    id: "billing",
+    submenu: [{ path: "/billing/create", label: "Create Billing", icon: Plus }],
+  },
+  {
+    label: "Loans",
+    icon: Banknote,
+    id: "loans",
     submenu: [
-      { path: "/quick-shopping", label: "Setup Menu", icon: List },
-      { path: "/quick-shopping-view", label: "View Menu", icon: Eye },
+      { path: "/loans/active", label: "Active Loans", icon: List },
+      { path: "/loans/inactive", label: "Completed Loans", icon: Eye },
+      { path: "/repayment", label: "Loan Repayment", icon: Receipt },
     ],
   },
   {
-    label: "Banners",
-    icon: Image,
-    id: "banners",
+    path: "/customers",
+    icon: Users,
+    label: "Customer Management",
+  },
+  {
+    label: "Admin",
+    icon: Settings,
+    id: "admin",
     submenu: [
-      { path: "/banners", label: "All Banners", icon: List },
-      { action: "upload-banner", label: "Upload Banner", icon: Plus },
+      { path: "/admin/profile", label: "Admin Profile", icon: UserCog },
+      { path: "/admin/items", label: "Item Management", icon: Package },
+      { path: "/admin/managers", label: "Manager Onboarding", icon: Users },
+      { path: "/admin/managers/list", label: "Manager List", icon: List },
+      { path: "/admin/shop-details", label: "Shop Details", icon: Settings },
+      { path: "/admin/expenses", label: "Expense Management", icon: Receipt },
+      {
+        path: "/admin/balance-sheet",
+        label: "Balance Sheet",
+        icon: TrendingUp,
+      },
+      {
+        path: "/admin/reports/transactions",
+        label: "Transaction Reports",
+        icon: TrendingUp,
+      },
+      { path: "/admin/reports/audit", label: "Audit Reports", icon: Receipt },
     ],
   },
   {
-    label: "Categories",
-    icon: FolderTree,
-    id: "categories",
-    submenu: [
-      { path: "/categories", exact: true, label: "All Categories", icon: List },
-      {
-        path: "/categories",
-        state: { action: "create-category" },
-        label: "Create Category",
-        icon: Plus,
-      },
-      {
-        path: "/categories",
-        search: "?view=subcategories",
-        label: "Subcategories",
-        icon: Tag,
-      },
-      {
-        path: "/categories",
-        search: "?create=subcategory",
-        label: "Create Subcategory",
-        icon: Plus,
-      },
-    ],
-  },
-  {
-    label: "Products",
-    icon: Package,
-    id: "products",
-    submenu: [
-      { path: "/products", label: "All Products", icon: List },
-      // { path: "/products/create", label: "Create Product", icon: Plus },
-      // {
-      //   path: "/products/stats",
-      //   label: "Product Stats",
-      //   icon: LayoutDashboard,
-      // },
-    ],
+    label: "Transactions",
+    icon: TrendingUp,
+    path: "/transactions",
   },
 ];
 
@@ -93,6 +90,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   );
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   // Auto-expand menus based on current location (only for non-manually toggled menus)
   useEffect(() => {
@@ -158,11 +156,8 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   };
 
   const handleMenuAction = (action: string) => {
-    if (action === "upload-banner") {
-      // Navigate to banners page with a special parameter to open the upload modal
-      navigate("/banners?upload=true");
-      window.innerWidth < 1024 && onClose();
-    }
+    // Handle any future menu actions here
+    console.log("Menu action:", action);
   };
 
   // Check if a menu item is active based on path and search params
@@ -314,10 +309,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">
-                  Admin Panel
+                  Pawn Shop
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  E-Commerce Management
+                  Billing & Loan Management
                 </p>
               </div>
             </div>
@@ -326,7 +321,15 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           {/* Navigation */}
           <nav className="flex-1 p-3 sm:p-4 overflow-y-auto">
             <div className="space-y-1 sm:space-y-2">
-              {menuItems.map((item, index) => renderMenuItem(item, index))}
+              {menuItems
+                .filter((item) => {
+                  // Hide admin menu for managers
+                  if (item.id === "admin" && user?.role !== "admin") {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((item, index) => renderMenuItem(item, index))}
             </div>
           </nav>
         </div>

@@ -149,7 +149,7 @@ export const LoginPage = () => {
               Welcome Back!
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Crackers E-Commerce Admin
+              BILLING SOFTWARE
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
               (Only for Administration Purpose)
@@ -175,7 +175,7 @@ export const LoginPage = () => {
                     focusRingColor: colors.primary.medium,
                     borderRadius: themeConfig.borderRadius,
                   }}
-                  placeholder="admin@crackers.com"
+                  placeholder="admin@bs.com"
                 />
               </div>
               {errors.email && (

@@ -12,6 +12,7 @@ interface AuthContextType {
   token: string | null;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -84,6 +85,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const updateUser = (updatedUser: User) => {
+    try {
+      localStorage.setItem("admin_user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      console.log("User updated successfully:", updatedUser);
+    } catch (error) {
+      console.error("Error updating user data:", error);
+    }
+  };
+
   const isAuthenticated = !!token && !!user;
 
   console.log("useAuth state:", {
@@ -99,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     token,
     login,
     logout,
+    updateUser,
     isAuthenticated,
     isLoading,
   };

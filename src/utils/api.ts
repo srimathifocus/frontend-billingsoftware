@@ -1,8 +1,7 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-// const API_BASE_URL = "https://branch1admin.onrender.com/api";
-const API_BASE_URL = "http://localhost:5001/api"; // Local development URL
+const API_BASE_URL = "http://localhost:5000/api"; // Pawn shop backend URL
 
 // Application configured for real-time data only
 export const MOCK_MODE = false;
@@ -25,7 +24,6 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error("API Request Error:", error);
     return Promise.reject(error);
   }
 );

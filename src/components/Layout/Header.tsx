@@ -38,7 +38,7 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
               </div>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate">
-                  <span className="hidden sm:inline">Crackers Admin</span>
+                  <span className="hidden sm:inline">BILLING SOFTWARE</span>
                   <span className="sm:hidden">Admin</span>
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
