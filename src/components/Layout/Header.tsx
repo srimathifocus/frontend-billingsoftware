@@ -39,10 +39,14 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate">
                   <span className="hidden sm:inline">BILLING SOFTWARE</span>
-                  <span className="sm:hidden">Admin</span>
+                  <span className="sm:hidden">
+                    {user?.role === "admin" ? "Admin" : "Manager"}
+                  </span>
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
-                  Only for Administration Purpose
+                  {user?.role === "admin"
+                    ? "Only for Administration Purpose"
+                    : "Manager Dashboard"}
                 </p>
               </div>
             </div>
@@ -74,11 +78,10 @@ export const Header = ({ isSidebarOpen, toggleSidebar }: HeaderProps) => {
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[120px] lg:max-w-none">
                   {user?.email}
                 </p>
-                {user?.branch && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    Branch: {user.branch}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user?.role === "admin" ? "Administrator" : "Manager"}
+                  {user?.branch && ` • Branch: ${user.branch}`}
+                </p>
               </div>
               <button
                 onClick={logout}

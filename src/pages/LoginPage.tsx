@@ -51,20 +51,28 @@ export const LoginPage = () => {
       // Handle different possible response structures
       let token, user;
 
-      if (response.data.token) {
-        // Your specific API structure: token is directly in response, user data is the whole object
+      if (response.data.token && response.data.user) {
+        // Backend returns: { token: "...", user: { ... } }
         token = response.data.token;
-
-        // Create user object from the response data (excluding the token)
+        user = {
+          id: response.data.user._id,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          branch: response.data.user.branch,
+          role: response.data.user.role, // Use the actual role from the user object
+        };
+        console.log("Parsed API structure with separate user object");
+      } else if (response.data.token) {
+        // Fallback: token is directly in response, user data might be mixed in
+        token = response.data.token;
         user = {
           id: response.data._id,
           name: response.data.name,
           email: response.data.email,
           branch: response.data.branch,
-          role: response.data.role || "admin", // Default to admin if no role specified
+          role: response.data.role, // Don't default to admin, use actual role
         };
-
-        console.log("Parsed your API structure successfully");
+        console.log("Parsed API structure with mixed data");
       } else if (
         response.data.data &&
         response.data.data.token &&
@@ -109,6 +117,16 @@ export const LoginPage = () => {
         );
       }
 
+      // Validate that role is properly set
+      if (!user.role) {
+        console.error("User role is missing from response");
+        console.error("User object:", user);
+        console.error("Full response:", response.data);
+        throw new Error("User role is missing from login response");
+      }
+
+      console.log("User role validated:", user.role);
+
       console.log("About to call login with:", { token, user });
       login(token, user);
 
@@ -148,11 +166,9 @@ export const LoginPage = () => {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Welcome Back!
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              BILLING SOFTWARE
-            </p>
+            <p className="text-gray-600 dark:text-gray-400">BILLING SOFTWARE</p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              (Only for Administration Purpose)
+              (Authorized Personnel Only)
             </p>
           </div>
 
@@ -247,7 +263,7 @@ export const LoginPage = () => {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Secure admin access for authorized personnel only
+              Secure access for authorized personnel only
             </p>
           </div>
         </div>

@@ -11,6 +11,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider } from "./hooks/useAuth.tsx";
 import { ThemeProvider } from "./hooks/useTheme.tsx";
 import { PrivateRoute } from "./components/PrivateRoute";
+import { AdminRoute } from "./components/AdminRoute";
 import { Layout } from "./components/Layout/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { LoginPage } from "./pages/LoginPage";
@@ -159,22 +160,22 @@ function App() {
                 <Route
                   path="/admin/profile"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <AdminProfilePage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/items"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <ItemManagementPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
@@ -192,88 +193,88 @@ function App() {
                 <Route
                   path="/admin/managers"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <ManagerOnboardingPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/managers/create"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <ManagerOnboardingPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/managers/list"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <ManagerListPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/reports/transactions"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <TransactionReportPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/reports/audit"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <AuditReportPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/shop-details"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <ShopDetailsPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/expenses"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <ExpenseManagementPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 
                 <Route
                   path="/admin/balance-sheet"
                   element={
-                    <PrivateRoute>
+                    <AdminRoute>
                       <Layout>
                         <BalanceSheetPage />
                       </Layout>
-                    </PrivateRoute>
+                    </AdminRoute>
                   }
                 />
 

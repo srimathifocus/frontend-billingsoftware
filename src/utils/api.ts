@@ -1,8 +1,8 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-// const API_BASE_URL = "http://localhost:5000/api"; // Pawn shop backend URL
-const API_BASE_URL = " https://bill-backend-80df.onrender.com/api";
+const API_BASE_URL = "http://localhost:5000/api"; // Pawn shop backend URL
+// const API_BASE_URL = " https://bill-backend-80df.onrender.com/api";
 // Application configured for real-time data only
 export const MOCK_MODE = false;
 
