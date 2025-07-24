@@ -24,3 +24,30 @@
     -webkit-line-clamp: 3;
   }
 }
+
+/* Auto-logout warning toast styles */
+.logout-warning-toast {
+  background-color: #f59e0b !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  border: 2px solid #d97706 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  z-index: 9999 !important;
+  animation: pulse 1s infinite !important;
+}
+
+.logout-warning-toast .Toastify__toast-body {
+  padding: 16px !important;
+  line-height: 1.5 !important;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}

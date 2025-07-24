@@ -52,7 +52,7 @@ const downloadInvoice = async (
         : `/invoice/repayment/${loanId}/pdf`;
     const response = await fetch(`http://localhost:5000/api${endpoint}`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+        Authorization: `Bearer ${sessionStorage.getItem("admin_token")}`,
       },
     });
 

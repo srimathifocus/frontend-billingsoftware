@@ -27,9 +27,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setIsLoading(true);
 
+    // Clean up any old localStorage data (migration from localStorage to sessionStorage)
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_user");
+
     // Clear any corrupted data first
-    const savedToken = localStorage.getItem("admin_token");
-    const savedUser = localStorage.getItem("admin_user");
+    const savedToken = sessionStorage.getItem("admin_token");
+    const savedUser = sessionStorage.getItem("admin_user");
 
     console.log("Checking saved data:", { savedToken, savedUser });
 
@@ -51,16 +55,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Error parsing saved user data:", error);
         // Clear corrupted data
-        localStorage.removeItem("admin_token");
-        localStorage.removeItem("admin_user");
+        sessionStorage.removeItem("admin_token");
+        sessionStorage.removeItem("admin_user");
         setToken(null);
         setUser(null);
       }
     } else {
       // Clear any undefined values
       if (savedToken === "undefined" || savedUser === "undefined") {
-        localStorage.removeItem("admin_token");
-        localStorage.removeItem("admin_user");
+        sessionStorage.removeItem("admin_token");
+        sessionStorage.removeItem("admin_user");
       }
     }
     setIsLoading(false);
@@ -68,8 +72,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (token: string, user: User) => {
     try {
-      localStorage.setItem("admin_token", token);
-      localStorage.setItem("admin_user", JSON.stringify(user));
+      sessionStorage.setItem("admin_token", token);
+      sessionStorage.setItem("admin_user", JSON.stringify(user));
       setToken(token);
       setUser(user);
       console.log("Login successful, token saved:", token);
@@ -79,15 +83,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_user");
+    sessionStorage.removeItem("admin_token");
+    sessionStorage.removeItem("admin_user");
     setToken(null);
     setUser(null);
   };
 
   const updateUser = (updatedUser: User) => {
     try {
-      localStorage.setItem("admin_user", JSON.stringify(updatedUser));
+      sessionStorage.setItem("admin_user", JSON.stringify(updatedUser));
       setUser(updatedUser);
       console.log("User updated successfully:", updatedUser);
     } catch (error) {

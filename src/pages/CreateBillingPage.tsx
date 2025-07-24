@@ -22,6 +22,7 @@ import api from "../utils/api";
 import { BillingCreateRequest } from "../types";
 import { colors, themeConfig } from "../theme/colors";
 import { CompactInvoiceModal } from "../components/CompactInvoiceModal";
+import { SearchableDistrictDropdown } from "../components/SearchableDistrictDropdown";
 
 const createBilling = async (data: BillingCreateRequest) => {
   const response = await api.post("/billing/create", data);
@@ -392,24 +393,29 @@ export const CreateBillingPage = () => {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             District *
           </label>
+          <SearchableDistrictDropdown
+            value={watch("customer.address.district") || ""}
+            onChange={(value) => {
+              setValue("customer.address.district", value);
+              // Trigger validation for the field
+              if (value) {
+                // Clear any existing error
+                setValue("customer.address.district", value, {
+                  shouldValidate: true,
+                });
+              }
+            }}
+            error={errors.customer?.address?.district?.message}
+            placeholder="Select district"
+            required={true}
+          />
+          {/* Hidden input for form validation */}
           <input
-            type="text"
+            type="hidden"
             {...register("customer.address.district", {
               required: "District is required",
             })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:border-transparent dark:bg-gray-800 dark:text-white"
-            style={{
-              ...(errors.customer?.address?.district && {
-                borderColor: colors.primary.dark,
-              }),
-            }}
-            placeholder="District name"
           />
-          {errors.customer?.address?.district && (
-            <p className="text-sm mt-1" style={{ color: colors.primary.dark }}>
-              {errors.customer.address.district.message}
-            </p>
-          )}
         </div>
 
         <div>

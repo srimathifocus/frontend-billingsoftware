@@ -15,9 +15,9 @@ export interface DashboardStats {
   // Pawn Shop Stats
   totalLoans: number;
   activeLoans: number;
-  inactiveLoans: number;
+  repaidLoans: number;
   totalActiveLoanAmount: number;
-  totalInactiveLoanAmount: number;
+  totalRepaidLoanAmount: number;
   totalCurrentInterest: number;
   todayBillingAmount: number;
   todayRepaymentAmount: number;
@@ -161,9 +161,9 @@ export interface BillingStats {
 export interface LoanStats {
   totalLoans: number;
   activeLoans: number;
-  inactiveLoans: number;
+  repaidLoans: number;
   totalActiveLoanAmount: number;
-  totalInactiveLoanAmount: number;
+  totalRepaidLoanAmount: number;
   totalCurrentInterest: number;
   paymentBreakdown: {
     _id: string;
@@ -216,4 +216,47 @@ export interface RepaymentSearchResult {
     daysPassed: number;
     totalDue: number;
   };
+}
+
+// Customer Edit History Types
+export interface CustomerEditHistory {
+  _id: string;
+  customerId: {
+    _id: string;
+    name: string;
+    phone: string;
+  };
+  editedBy: {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  editType: "UPDATE" | "DELETE";
+  changes: Record<string, { from: any; to: any }>;
+  previousData: Customer;
+  newData?: Customer;
+  reason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerEditRequest {
+  name?: string;
+  phone?: string;
+  address?: {
+    doorNo?: string;
+    street?: string;
+    town?: string;
+    district?: string;
+    pincode?: string;
+  };
+  nominee?: string;
+  reason?: string;
+}
+
+export interface CustomerDeleteRequest {
+  reason?: string;
 }

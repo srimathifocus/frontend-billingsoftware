@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   User,
   Phone,
@@ -7,24 +7,30 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-  Download,
   Calendar,
   IndianRupee,
   CheckCircle,
   Clock,
   AlertCircle,
-  Printer,
   Search,
   Filter,
   Users,
   UserCheck,
-  UserX,
   Eye,
-  FileDown,
+  Edit,
+  Trash2,
+  History,
+  Shield,
 } from "lucide-react";
 import api from "../utils/api";
 import { InvoiceModal } from "../components/InvoiceModal";
+import { InvoiceViewButtons } from "../components/InvoiceViewButtons";
+import { CustomerEditModal } from "../components/CustomerEditModal";
+import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
+import { CustomerEditHistoryModal } from "../components/CustomerEditHistoryModal";
 import { colors } from "../theme/colors";
+import { CustomerEditRequest, CustomerDeleteRequest } from "../types";
+import { toast } from "react-toastify";
 
 interface Customer {
   _id: string;
@@ -38,7 +44,7 @@ interface Customer {
     pincode?: string;
   };
   createdAt: string;
-  loanStatus: "active" | "repaid" | "inactive";
+  loanStatus: "active" | "repaid";
 }
 
 interface CustomerInvoice {
@@ -82,57 +88,103 @@ const downloadInvoice = async (
       type === "billing"
         ? `/invoice/loan/${loanId}/pdf`
         : `/invoice/repayment/${loanId}/pdf`;
+
+    console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
+
     const response = await api.get(endpoint, {
       responseType: "blob",
+      headers: {
+        Accept: "application/pdf",
+      },
     });
 
-    const blob = new Blob([response.data], { type: "application/pdf" });
+    // Check if response is actually a PDF
+    if (response.data.type !== "application/pdf") {
+      console.error("Response is not a PDF:", response.data.type);
+      toast.error("Invalid PDF response from server");
+      return;
+    }
+
+    // Check response size - if too small, might be empty/error
+    if (response.data.size < 1000) {
+      console.warn("PDF response size is very small:", response.data.size);
+    }
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = `${type}_invoice_${loanId}.pdf`;
+
+    // Ensure link is added to DOM before clicking
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+
+    // Clean up immediately after download
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+
+    console.log(`${type} invoice downloaded successfully`);
   } catch (error) {
     console.error("Error downloading invoice:", error);
+
+    // More specific error handling
+    if (error.response) {
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", error.response.data);
+
+      if (error.response.status === 404) {
+        toast.error(`${type} invoice not found`);
+      } else if (error.response.status === 500) {
+        toast.error("Server error while generating PDF");
+      } else {
+        toast.error(`Failed to download ${type} invoice`);
+      }
+    } else {
+      toast.error("Network error while downloading PDF");
+    }
   }
 };
 
-const printCustomerList = async () => {
-  try {
-    const response = await api.get("/customers/print/list", {
-      responseType: "blob",
-    });
-
-    const blob = new Blob([response.data], { type: "application/pdf" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "customer-list.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error printing customer list:", error);
-  }
-};
-
+// Updated print function with better error handling
 const printInvoice = (loanId: string, type: "billing" | "repayment") => {
-  const printWindow = window.open(
-    `${api.defaults.baseURL}/invoice/${type}/${loanId}/print`,
-    "_blank"
-  );
-  if (printWindow) {
+  try {
+    const printUrl = `${api.defaults.baseURL}/invoice/${type}/${loanId}/print`;
+    console.log(`Opening print window for ${type} invoice:`, printUrl);
+
+    const printWindow = window.open(printUrl, "_blank", "width=800,height=600");
+
+    if (!printWindow) {
+      toast.error("Pop-up blocked. Please allow pop-ups and try again.");
+      return;
+    }
+
     printWindow.onload = () => {
-      printWindow.print();
+      // Small delay to ensure content is fully loaded
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
     };
+
+    // Handle cases where window fails to load
+    printWindow.onerror = (error) => {
+      console.error("Print window error:", error);
+      toast.error("Failed to load print preview");
+    };
+  } catch (error) {
+    console.error("Error opening print window:", error);
+    toast.error("Failed to open print preview");
   }
 };
 
 export const CustomerManagementPage = () => {
+  const queryClient = useQueryClient();
+
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
   const [customerInvoices, setCustomerInvoices] = useState<{
     [key: string]: CustomerInvoice[];
@@ -141,10 +193,22 @@ export const CustomerManagementPage = () => {
     useState<CustomerInvoice | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
+  // New modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null
+  );
+
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Get current user role from session storage
+  const currentUser = JSON.parse(sessionStorage.getItem("admin_user") || "{}");
+  const isAdmin = currentUser.role === "admin";
 
   // Debounce search term
   useEffect(() => {
@@ -166,6 +230,48 @@ export const CustomerManagementPage = () => {
         search: debouncedSearch || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
       }),
+  });
+
+  // Edit customer mutation
+  const editCustomerMutation = useMutation({
+    mutationFn: async ({
+      customerId,
+      data,
+    }: {
+      customerId: string;
+      data: CustomerEditRequest;
+    }) => {
+      const response = await api.put(`/customers/${customerId}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Customer updated successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update customer");
+    },
+  });
+
+  // Delete customer mutation
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async ({
+      customerId,
+      data,
+    }: {
+      customerId: string;
+      data: CustomerDeleteRequest;
+    }) => {
+      const response = await api.delete(`/customers/${customerId}`, { data });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("Customer deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to delete customer");
+    },
   });
 
   const handleCustomerExpand = async (customerId: string) => {
@@ -193,6 +299,40 @@ export const CustomerManagementPage = () => {
   const showInvoiceDetails = (invoice: CustomerInvoice) => {
     setSelectedInvoice(invoice);
     setShowInvoiceModal(true);
+  };
+
+  // Handler functions for new modals
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowDeleteModal(true);
+  };
+
+  const handleViewHistory = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowHistoryModal(true);
+  };
+
+  const handleSaveEdit = async (data: CustomerEditRequest) => {
+    if (selectedCustomer) {
+      await editCustomerMutation.mutateAsync({
+        customerId: selectedCustomer._id!,
+        data,
+      });
+    }
+  };
+
+  const handleConfirmDelete = async (data: CustomerDeleteRequest) => {
+    if (selectedCustomer) {
+      await deleteCustomerMutation.mutateAsync({
+        customerId: selectedCustomer._id!,
+        data,
+      });
+    }
   };
 
   const formatAddress = (address: Customer["address"]) => {
@@ -226,8 +366,8 @@ export const CustomerManagementPage = () => {
         return {
           bg: "bg-gray-100 dark:bg-gray-800",
           text: "text-gray-600 dark:text-gray-400",
-          icon: UserX,
-          label: "Inactive",
+          icon: AlertCircle,
+          label: "Unknown",
         };
     }
   };
@@ -273,14 +413,6 @@ export const CustomerManagementPage = () => {
               Search, filter and manage customer details and invoices
             </p>
           </div>
-          <button
-            onClick={printCustomerList}
-            className="flex items-center space-x-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
-            style={{ backgroundColor: colors.primary.dark }}
-          >
-            <Printer className="h-4 w-4" />
-            <span>Print List</span>
-          </button>
         </div>
 
         {/* Search and Filter Controls */}
@@ -322,9 +454,6 @@ export const CustomerManagementPage = () => {
                 <option value="repaid">
                   Repaid ({statusCounts.repaid || 0})
                 </option>
-                <option value="inactive">
-                  Inactive ({statusCounts.inactive || 0})
-                </option>
               </select>
             </div>
           </div>
@@ -353,18 +482,6 @@ export const CustomerManagementPage = () => {
               />
               <span className="text-sm" style={{ color: colors.status.repaid }}>
                 Repaid: {statusCounts.repaid || 0}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <UserX
-                className="h-4 w-4"
-                style={{ color: colors.status.inactive }}
-              />
-              <span
-                className="text-sm"
-                style={{ color: colors.status.inactive }}
-              >
-                Inactive: {statusCounts.inactive || 0}
               </span>
             </div>
           </div>
@@ -432,7 +549,53 @@ export const CustomerManagementPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center">
+                  <div className="flex items-center space-x-2">
+                    {/* Admin-only action buttons */}
+                    {isAdmin && (
+                      <div className="flex items-center space-x-1 mr-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCustomer(customer);
+                          }}
+                          className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          title="Edit Customer"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewHistory(customer);
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                          title="View Edit History"
+                        >
+                          <History className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCustomer(customer);
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Delete Customer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Role indicator */}
+                    {!isAdmin && (
+                      <div className="flex items-center space-x-1 mr-4 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <Shield className="h-3 w-3 text-gray-500" />
+                        <span className="text-xs text-gray-500">
+                          Manager View
+                        </span>
+                      </div>
+                    )}
+
                     {expandedCustomer === customer._id ? (
                       <ChevronUp className="h-5 w-5 text-gray-400" />
                     ) : (
@@ -530,87 +693,17 @@ export const CustomerManagementPage = () => {
                             </div>
 
                             <div className="flex space-x-2">
-                              <button
-                                onClick={() => showInvoiceDetails(invoice)}
-                                className="flex items-center space-x-1 px-3 py-1 text-white text-sm rounded hover:opacity-90 transition-colors"
-                                style={{
-                                  backgroundColor: colors.primary.light,
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                                <span>View</span>
-                              </button>
-
-                              {/* Billing Invoice Actions */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  printInvoice(invoice.loanObjectId, "billing");
-                                }}
-                                className="flex items-center space-x-1 px-3 py-1 text-white text-sm rounded hover:opacity-90 transition-colors"
-                                style={{
-                                  backgroundColor: colors.primary.medium,
-                                }}
-                                title="Print Billing Invoice"
-                              >
-                                <Printer className="h-4 w-4" />
-                                <span>Print</span>
-                              </button>
-
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  downloadInvoice(
-                                    invoice.loanObjectId,
-                                    "billing"
-                                  );
-                                }}
-                                className="flex items-center space-x-1 px-3 py-1 text-white text-sm rounded hover:opacity-90 transition-colors"
-                                style={{ backgroundColor: colors.primary.dark }}
-                                title="Download Billing PDF"
-                              >
-                                <FileDown className="h-4 w-4" />
-                                <span>PDF</span>
-                              </button>
-
-                              {/* Repayment Invoice Actions - Only if repaid */}
-                              {invoice.repaymentInvoiceAvailable && (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      printInvoice(
-                                        invoice.loanObjectId,
-                                        "repayment"
-                                      );
-                                    }}
-                                    className="flex items-center space-x-1 px-3 py-1 text-white text-sm rounded hover:opacity-90 transition-colors"
-                                    style={{
-                                      backgroundColor: colors.status.repaid,
-                                    }}
-                                    title="Print Repayment Invoice"
-                                  >
-                                    <Printer className="h-4 w-4" />
-                                    <span>Rep.Print</span>
-                                  </button>
-
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      downloadInvoice(
-                                        invoice.loanObjectId,
-                                        "repayment"
-                                      );
-                                    }}
-                                    className="flex items-center space-x-1 px-3 py-1 text-white text-sm rounded hover:opacity-90 transition-colors"
-                                    style={{ backgroundColor: "#1E40AF" }}
-                                    title="Download Repayment PDF"
-                                  >
-                                    <FileDown className="h-4 w-4" />
-                                    <span>Rep.PDF</span>
-                                  </button>
-                                </>
-                              )}
+                              <InvoiceViewButtons
+                                loanObjectId={invoice.loanObjectId}
+                                loanId={invoice.loanId}
+                                customerName={invoice.customerName}
+                                billingAvailable={
+                                  invoice.billingInvoiceAvailable
+                                }
+                                repaymentAvailable={
+                                  invoice.repaymentInvoiceAvailable
+                                }
+                              />
                             </div>
                           </div>
 
@@ -711,6 +804,47 @@ export const CustomerManagementPage = () => {
             repaymentDate: selectedInvoice.repaymentDate,
             items: selectedInvoice.items,
           }}
+        />
+      )}
+
+      {/* Edit Customer Modal */}
+      {selectedCustomer && (
+        <CustomerEditModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedCustomer(null);
+          }}
+          customer={selectedCustomer}
+          onSave={handleSaveEdit}
+          isLoading={editCustomerMutation.isPending}
+        />
+      )}
+
+      {/* Delete Customer Modal */}
+      {selectedCustomer && (
+        <CustomerDeleteModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setSelectedCustomer(null);
+          }}
+          customer={selectedCustomer}
+          onDelete={handleConfirmDelete}
+          isLoading={deleteCustomerMutation.isPending}
+        />
+      )}
+
+      {/* Edit History Modal */}
+      {selectedCustomer && (
+        <CustomerEditHistoryModal
+          isOpen={showHistoryModal}
+          onClose={() => {
+            setShowHistoryModal(false);
+            setSelectedCustomer(null);
+          }}
+          customerId={selectedCustomer._id!}
+          customerName={selectedCustomer.name}
         />
       )}
     </div>

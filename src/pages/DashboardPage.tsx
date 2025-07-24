@@ -37,9 +37,9 @@ const fetchDashboardStats = async (): Promise<DashboardStats> => {
     const combinedStats: DashboardStats = {
       totalLoans: loanStats.data.totalLoans || 0,
       activeLoans: loanStats.data.activeLoans || 0,
-      inactiveLoans: loanStats.data.inactiveLoans || 0,
+      repaidLoans: loanStats.data.repaidLoans || 0,
       totalActiveLoanAmount: loanStats.data.totalActiveLoanAmount || 0,
-      totalInactiveLoanAmount: loanStats.data.totalInactiveLoanAmount || 0,
+      totalRepaidLoanAmount: loanStats.data.totalRepaidLoanAmount || 0,
       totalCurrentInterest: loanStats.data.totalCurrentInterest || 0,
       todayBillingAmount: billingStats.data.totalLoanAmount || 0,
       todayRepaymentAmount: loanStats.data.todayRepaymentAmount || 0,
@@ -58,9 +58,9 @@ const fetchDashboardStats = async (): Promise<DashboardStats> => {
     return {
       totalLoans: 0,
       activeLoans: 0,
-      inactiveLoans: 0,
+      repaidLoans: 0,
       totalActiveLoanAmount: 0,
-      totalInactiveLoanAmount: 0,
+      totalRepaidLoanAmount: 0,
       totalCurrentInterest: 0,
       todayBillingAmount: 0,
       todayRepaymentAmount: 0,
@@ -213,17 +213,51 @@ export const DashboardPage = () => {
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Real-time Loan Management & Performance Metrics
-            {/* (Auto-refreshing
-            every 10 seconds) */}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+      </div>
+
+      {/* Quick Actions - Moved to Top */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/billing/create"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+            className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
           >
-            <Plus className="h-4 w-4" />
-            Create Billing
+            <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <span className="font-medium text-blue-900 dark:text-blue-100">
+              Create Billing
+            </span>
+          </Link>
+          <Link
+            to="/loans/active"
+            className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+          >
+            <Banknote className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <span className="font-medium text-green-900 dark:text-green-100">
+              View Active Loans
+            </span>
+          </Link>
+          <Link
+            to="/repayment"
+            className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+          >
+            <IndianRupee className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <span className="font-medium text-purple-900 dark:text-purple-100">
+              Process Repayment
+            </span>
+          </Link>
+          <Link
+            to="/transactions"
+            className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
+          >
+            <TrendingUp className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            <span className="font-medium text-yellow-900 dark:text-yellow-100">
+              View Transactions
+            </span>
           </Link>
         </div>
       </div>
@@ -409,51 +443,6 @@ export const DashboardPage = () => {
           </div>
         </div>
       </div> */}
-
-      {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link
-            to="/billing/create"
-            className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-          >
-            <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <span className="font-medium text-blue-900 dark:text-blue-100">
-              Create Billing
-            </span>
-          </Link>
-          <Link
-            to="/loans/active"
-            className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-          >
-            <Banknote className="h-5 w-5 text-green-600 dark:text-green-400" />
-            <span className="font-medium text-green-900 dark:text-green-100">
-              View Active Loans
-            </span>
-          </Link>
-          <Link
-            to="/repayment"
-            className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-          >
-            <IndianRupee className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <span className="font-medium text-purple-900 dark:text-purple-100">
-              Process Repayment
-            </span>
-          </Link>
-          <Link
-            to="/transactions"
-            className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
-          >
-            <TrendingUp className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-            <span className="font-medium text-yellow-900 dark:text-yellow-100">
-              View Transactions
-            </span>
-          </Link>
-        </div>
-      </div>
     </div>
   );
 };

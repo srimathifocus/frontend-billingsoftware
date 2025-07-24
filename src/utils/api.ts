@@ -1,8 +1,8 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-// const API_BASE_URL = "http://localhost:5000/api"; // Pawn shop backend URL
-const API_BASE_URL = " https://bill-backend-80df.onrender.com/api";
+const API_BASE_URL = "http://localhost:5000/api"; // Pawn shop backend URL
+// const API_BASE_URL = " https://bill-backend-80df.onrender.com/api";
 // Application configured for real-time data only
 export const MOCK_MODE = false;
 
@@ -17,7 +17,7 @@ export const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("admin_token");
+    const token = sessionStorage.getItem("admin_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -46,10 +46,13 @@ api.interceptors.response.use(
 
     // Handle authentication errors
     if (error.response?.status === 401) {
-      localStorage.removeItem("admin_token");
-      localStorage.removeItem("admin_user");
-      window.location.href = "/login";
-      toast.error("Session expired. Please login again.");
+      // Only redirect if not already on login page to avoid conflicts with auto-logout
+      if (window.location.pathname !== "/login") {
+        sessionStorage.removeItem("admin_token");
+        sessionStorage.removeItem("admin_user");
+        window.location.href = "/login";
+        toast.error("Session expired. Please login again.");
+      }
     }
     // Handle server errors
     else if (error.response?.status >= 500) {

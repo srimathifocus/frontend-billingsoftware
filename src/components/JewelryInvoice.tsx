@@ -194,7 +194,7 @@ export const JewelryInvoice = forwardRef<HTMLDivElement, JewelryInvoiceProps>(
 
         {/* Footer */}
         <div className="text-center text-xs mt-1 border-t border-gray-400 pt-0.5">
-          <div>Thank you for your business!</div>
+          <div>Thank you!</div>
           <div>Generated on: {new Date().toLocaleString("en-IN")}</div>
         </div>
       </div>

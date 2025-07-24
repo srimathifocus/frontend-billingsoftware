@@ -14,6 +14,34 @@ import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { colors } from "../theme/colors";
 
+interface Loan {
+  _id: string;
+  loanId: string;
+  amount: number;
+  interestPercent: number;
+  status: string;
+  createdAt: string;
+  customerId: {
+    name: string;
+    phone: string;
+  };
+}
+
+interface RepaymentTransaction {
+  _id: string;
+  principalAmount: number;
+  interestAmount: number;
+  totalAmount: number;
+  repaymentDate: string;
+  loanId: {
+    loanId: string;
+    customerId: {
+      name: string;
+      phone: string;
+    };
+  };
+}
+
 interface TransactionReportData {
   title: string;
   generatedOn: string;
@@ -30,15 +58,30 @@ interface TransactionReportData {
     totalInterestEarned: number;
     netRevenue: number;
   };
-  loans: any[];
-  repaymentTransactions: any[];
+  loans: Loan[];
+  repaymentTransactions: RepaymentTransaction[];
 }
 
 export const TransactionReportPage = () => {
   const navigate = useNavigate();
-  const [reportType, setReportType] = useState("daily");
+  const [reportType, setReportType] = useState("monthly");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Set default dates when switching to custom
+  const handleReportTypeChange = (newType: string) => {
+    setReportType(newType);
+    if (newType === "custom" && !startDate && !endDate) {
+      const today = new Date();
+      const firstDayOfMonth = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+      );
+      setStartDate(firstDayOfMonth.toISOString().split("T")[0]);
+      setEndDate(today.toISOString().split("T")[0]);
+    }
+  };
 
   const {
     data: reportData,
@@ -61,9 +104,15 @@ export const TransactionReportPage = () => {
   });
 
   const handleGenerateReport = () => {
-    if (reportType === "custom" && (!startDate || !endDate)) {
-      toast.error("Please select both start and end dates");
-      return;
+    if (reportType === "custom") {
+      if (!startDate || !endDate) {
+        toast.error("Please select both start and end dates for custom range");
+        return;
+      }
+      if (new Date(startDate) > new Date(endDate)) {
+        toast.error("Start date cannot be later than end date");
+        return;
+      }
     }
     refetch();
   };
@@ -93,10 +142,9 @@ export const TransactionReportPage = () => {
         `Rs. ${reportData.summary.totalRepaymentAmount.toLocaleString()}`,
       ],
       [
-        "Total Interest Earned:",
+        "Interest Earned:",
         `Rs. ${reportData.summary.totalInterestEarned.toLocaleString()}`,
       ],
-      ["Net Revenue:", `Rs. ${reportData.summary.netRevenue.toLocaleString()}`],
       [""],
       ["LOAN DETAILS"],
       [
@@ -116,6 +164,26 @@ export const TransactionReportPage = () => {
         `${loan.interestPercent}%`,
         loan.status,
         new Date(loan.createdAt).toLocaleDateString(),
+      ]),
+      [""],
+      ["REPAYMENT TRANSACTIONS"],
+      [
+        "Loan ID",
+        "Customer Name",
+        "Phone",
+        "Principal Amount",
+        "Interest Amount",
+        "Total Amount",
+        "Repayment Date",
+      ],
+      ...reportData.repaymentTransactions.map((repayment) => [
+        repayment.loanId?.loanId || "",
+        repayment.loanId?.customerId?.name || "",
+        repayment.loanId?.customerId?.phone || "",
+        `Rs. ${repayment.principalAmount.toLocaleString()}`,
+        `Rs. ${repayment.interestAmount.toLocaleString()}`,
+        `Rs. ${repayment.totalAmount.toLocaleString()}`,
+        new Date(repayment.repaymentDate).toLocaleDateString(),
       ]),
     ];
 
@@ -183,7 +251,7 @@ export const TransactionReportPage = () => {
             </label>
             <select
               value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
+              onChange={(e) => handleReportTypeChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
               <option value="daily">Daily</option>
@@ -202,6 +270,7 @@ export const TransactionReportPage = () => {
                 <input
                   type="date"
                   value={startDate}
+                  max={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 />
@@ -214,6 +283,8 @@ export const TransactionReportPage = () => {
                 <input
                   type="date"
                   value={endDate}
+                  min={startDate}
+                  max={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 />
@@ -349,7 +420,7 @@ export const TransactionReportPage = () => {
                   {formatCurrency(reportData.summary.netRevenue)}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Net Revenue
+                  Interest Earned
                 </p>
               </div>
             </div>
@@ -388,46 +459,140 @@ export const TransactionReportPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {reportData.loans.map((loan) => (
-                    <tr
-                      key={loan._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {loan.loanId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {loan.customerId?.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {loan.customerId?.phone}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {formatCurrency(loan.amount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {loan.interestPercent}%
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            loan.status === "active"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                              : loan.status === "settled"
-                              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                          }`}
-                        >
-                          {loan.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {new Date(loan.createdAt).toLocaleDateString()}
+                  {reportData.loans.length > 0 ? (
+                    reportData.loans.map((loan) => (
+                      <tr
+                        key={loan._id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {loan.loanId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            {loan.customerId?.name}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {loan.customerId?.phone}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {formatCurrency(loan.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {loan.interestPercent}%
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              loan.status === "active"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                : loan.status === "repaid"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                            }`}
+                          >
+                            {loan.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {new Date(loan.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
+                      >
+                        No loans found for this period
                       </td>
                     </tr>
-                  ))}
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Repayment Transactions Table */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mt-6">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Repayment Transactions
+              </h3>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Loan ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Principal Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Interest Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Total Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Repayment Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {reportData.repaymentTransactions.length > 0 ? (
+                    reportData.repaymentTransactions.map((repayment) => (
+                      <tr
+                        key={repayment._id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {repayment.loanId?.loanId || "N/A"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <div>
+                            <div className="font-medium">
+                              {repayment.loanId?.customerId?.name || "N/A"}
+                            </div>
+                            <div className="text-gray-500 dark:text-gray-400">
+                              {repayment.loanId?.customerId?.phone || "N/A"}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {formatCurrency(repayment.principalAmount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 font-medium">
+                          {formatCurrency(repayment.interestAmount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {formatCurrency(repayment.totalAmount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {new Date(
+                            repayment.repaymentDate
+                          ).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
+                      >
+                        No repayment transactions found for this period
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

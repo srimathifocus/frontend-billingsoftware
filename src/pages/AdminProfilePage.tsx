@@ -185,7 +185,7 @@ export const AdminProfilePage = () => {
             {isEditingName ? (
               <form
                 onSubmit={handleSubmitProfile(onProfileSubmit)}
-                className="flex gap-2"
+                className="space-y-3"
               >
                 <input
                   type="text"
@@ -196,26 +196,29 @@ export const AdminProfilePage = () => {
                       message: "Name must be at least 2 characters",
                     },
                   })}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   placeholder="Enter your name"
+                  autoFocus
                 />
-                <button
-                  type="submit"
-                  disabled={updateProfileMutation.isPending}
-                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {updateProfileMutation.isPending ? "..." : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditingName(false);
-                    resetProfile({ name: user?.name || "" });
-                  }}
-                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="submit"
+                    disabled={updateProfileMutation.isPending}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {updateProfileMutation.isPending ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingName(false);
+                      resetProfile({ name: user?.name || "" });
+                    }}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </form>
             ) : (
               <div className="flex items-center justify-between">

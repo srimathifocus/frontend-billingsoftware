@@ -40,8 +40,8 @@ export const LoginPage = () => {
     setIsLoading(true);
     try {
       // Clear any existing corrupted data before login
-      localStorage.removeItem("admin_token");
-      localStorage.removeItem("admin_user");
+      sessionStorage.removeItem("admin_token");
+      sessionStorage.removeItem("admin_user");
 
       const response = await api.post("/auth/login", data);
       console.log("Full API Response:", response);
