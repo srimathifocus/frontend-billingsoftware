@@ -197,12 +197,6 @@ export const ManagerListPage = () => {
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
         <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Manager Management

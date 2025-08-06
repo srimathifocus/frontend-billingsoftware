@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
   Calendar,
   DollarSign,
@@ -9,6 +10,7 @@ import {
   Save,
   X,
   IndianRupee,
+  TrendingUp,
 } from "lucide-react";
 import api from "../utils/api";
 
@@ -20,6 +22,8 @@ interface Expense {
   rent: number;
   utilities: number;
   miscellaneous: number;
+  goldAppraiserCharges: number;
+  accountingAuditFees: number;
   totalExpenses: number;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +61,7 @@ const monthNames = [
 ];
 
 export const ExpenseManagementPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingExpense, setEditingExpense] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Expense>>({
@@ -66,6 +71,8 @@ export const ExpenseManagementPage = () => {
     rent: undefined,
     utilities: undefined,
     miscellaneous: undefined,
+    goldAppraiserCharges: undefined,
+    accountingAuditFees: undefined,
   });
 
   const queryClient = useQueryClient();
@@ -88,7 +95,11 @@ export const ExpenseManagementPage = () => {
         rent: undefined,
         utilities: undefined,
         miscellaneous: undefined,
+        goldAppraiserCharges: undefined,
+        accountingAuditFees: undefined,
       });
+      // Clear URL parameters
+      setSearchParams({});
     },
   });
 
@@ -109,6 +120,8 @@ export const ExpenseManagementPage = () => {
       rent: undefined,
       utilities: undefined,
       miscellaneous: undefined,
+      goldAppraiserCharges: undefined,
+      accountingAuditFees: undefined,
     });
   };
 
@@ -116,6 +129,17 @@ export const ExpenseManagementPage = () => {
     setEditingExpense(expense._id);
     setFormData(expense);
   };
+
+  // Handle URL parameters for editing
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && expenses) {
+      const expenseToEdit = expenses.find((exp) => exp._id === editId);
+      if (expenseToEdit) {
+        handleEdit(expenseToEdit);
+      }
+    }
+  }, [searchParams, expenses]);
 
   const handleCancel = () => {
     setIsAddingNew(false);
@@ -127,7 +151,11 @@ export const ExpenseManagementPage = () => {
       rent: undefined,
       utilities: undefined,
       miscellaneous: undefined,
+      goldAppraiserCharges: undefined,
+      accountingAuditFees: undefined,
     });
+    // Clear URL parameters
+    setSearchParams({});
   };
 
   const handleSave = () => {
@@ -138,6 +166,8 @@ export const ExpenseManagementPage = () => {
       rent: formData.rent || 0,
       utilities: formData.utilities || 0,
       miscellaneous: formData.miscellaneous || 0,
+      goldAppraiserCharges: formData.goldAppraiserCharges || 0,
+      accountingAuditFees: formData.accountingAuditFees || 0,
     };
     createMutation.mutate(dataToSave);
   };
@@ -160,7 +190,9 @@ export const ExpenseManagementPage = () => {
       field === "salaries" ||
       field === "rent" ||
       field === "utilities" ||
-      field === "miscellaneous"
+      field === "miscellaneous" ||
+      field === "goldAppraiserCharges" ||
+      field === "accountingAuditFees"
     ) {
       const numValue = typeof value === "string" ? parseFloat(value) : value;
       setFormData((prev) => ({
@@ -192,15 +224,84 @@ export const ExpenseManagementPage = () => {
               Track monthly expenses for audit reports
             </p>
           </div>
-          <button
-            onClick={handleAddNew}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Expense</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.open("/tamil-nadu-audit-report", "_blank")}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <TrendingUp className="h-4 w-4" />
+              <span>View Reports</span>
+            </button>
+            <button
+              onClick={handleAddNew}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Expense</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Summary Cards */}
+      {expenses && expenses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Total Records
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {expenses.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Total Expenses
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  ₹
+                  {expenses
+                    .reduce((sum, exp) => sum + exp.totalExpenses, 0)
+                    .toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Average Monthly
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  ₹
+                  {Math.round(
+                    expenses.reduce((sum, exp) => sum + exp.totalExpenses, 0) /
+                      expenses.length
+                  ).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Form */}
       {(isAddingNew || editingExpense) && (
@@ -209,7 +310,8 @@ export const ExpenseManagementPage = () => {
             {isAddingNew ? "Add New Expense" : "Edit Expense"}
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Period Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Month
@@ -244,7 +346,10 @@ export const ExpenseManagementPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
             </div>
+          </div>
 
+          {/* Expense Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Salaries (₹)
@@ -312,6 +417,48 @@ export const ExpenseManagementPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Gold Appraiser Charges (₹)
+              </label>
+              <input
+                type="number"
+                value={
+                  formData.goldAppraiserCharges !== undefined
+                    ? formData.goldAppraiserCharges
+                    : ""
+                }
+                onChange={(e) =>
+                  handleInputChange("goldAppraiserCharges", e.target.value)
+                }
+                min="0"
+                step="0.01"
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Accounting & Audit Fees (₹)
+              </label>
+              <input
+                type="number"
+                value={
+                  formData.accountingAuditFees !== undefined
+                    ? formData.accountingAuditFees
+                    : ""
+                }
+                onChange={(e) =>
+                  handleInputChange("accountingAuditFees", e.target.value)
+                }
+                min="0"
+                step="0.01"
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
           </div>
 
           <div className="flex space-x-2">
@@ -362,6 +509,12 @@ export const ExpenseManagementPage = () => {
                       Miscellaneous
                     </th>
                     <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
+                      Gold Appraiser
+                    </th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
+                      Audit Fees
+                    </th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
                       Total
                     </th>
                     <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
@@ -394,6 +547,12 @@ export const ExpenseManagementPage = () => {
                       </td>
                       <td className="py-3 px-4 text-right text-gray-900 dark:text-white">
                         ₹{expense.miscellaneous.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-right text-gray-900 dark:text-white">
+                        ₹{(expense.goldAppraiserCharges || 0).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-right text-gray-900 dark:text-white">
+                        ₹{(expense.accountingAuditFees || 0).toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-gray-900 dark:text-white">
                         ₹{expense.totalExpenses.toLocaleString()}

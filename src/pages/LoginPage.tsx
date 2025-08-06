@@ -22,6 +22,10 @@ interface LoginForm {
 export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
   const { login, isAuthenticated } = useAuth();
 
   const {
@@ -38,6 +42,9 @@ export const LoginPage = () => {
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
+    // Clear any previous field errors
+    setFieldErrors({});
+
     try {
       // Clear any existing corrupted data before login
       sessionStorage.removeItem("admin_token");
@@ -136,13 +143,31 @@ export const LoginPage = () => {
       // Force immediate navigation
       window.location.href = "/dashboard";
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : (error as { response?: { data?: { message?: string } } })?.response
-              ?.data?.message || "Login failed";
       console.error("Login error:", error);
-      toast.error(errorMessage);
+
+      // Handle specific field errors from backend
+      const axiosError = error as {
+        response?: {
+          data?: {
+            message?: string;
+            field?: string;
+          };
+        };
+      };
+
+      const errorData = axiosError?.response?.data;
+      const errorMessage = errorData?.message || "Login failed";
+      const errorField = errorData?.field;
+
+      if (errorField && (errorField === "email" || errorField === "password")) {
+        // Set field-specific error
+        setFieldErrors({
+          [errorField]: errorMessage,
+        });
+      } else {
+        // Show generic error in toast
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -194,9 +219,10 @@ export const LoginPage = () => {
                   placeholder="admin@bs.com"
                 />
               </div>
-              {errors.email && (
+              {/* Show form validation errors or field-specific errors */}
+              {(errors.email || fieldErrors.email) && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.email.message}
+                  {fieldErrors.email || errors.email?.message}
                 </p>
               )}
             </div>
@@ -238,9 +264,10 @@ export const LoginPage = () => {
                   )}
                 </button>
               </div>
-              {errors.password && (
+              {/* Show form validation errors or field-specific errors */}
+              {(errors.password || fieldErrors.password) && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                  {errors.password.message}
+                  {fieldErrors.password || errors.password?.message}
                 </p>
               )}
             </div>

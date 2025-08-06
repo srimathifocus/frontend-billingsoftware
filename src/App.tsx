@@ -25,13 +25,14 @@ import { RepaymentPage } from "./pages/RepaymentPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
 import { ItemManagementPage } from "./pages/ItemManagementPage";
 import { CustomerManagementPage } from "./pages/CustomerManagementPage";
-import { ManagerOnboardingPage } from "./pages/ManagerOnboardingPage";
-import { ManagerListPage } from "./pages/ManagerListPage";
-import { TransactionReportPage } from "./pages/TransactionReportPage";
-import { AuditReportPage } from "./pages/AuditReportPage";
-import { ShopDetailsPage } from "./pages/ShopDetailsPage";
+import { ManagerPage } from "./pages/ManagerPage";
+import { EnhancedFinanceManagementPage } from "./pages/EnhancedFinanceManagementPage";
+import TamilNaduFinanceManagementPage from "./pages/TamilNaduFinanceManagementPage";
+import TamilNaduAuditReportPage from "./pages/TamilNaduAuditReportPage";
 import { ExpenseManagementPage } from "./pages/ExpenseManagementPage";
 import { BalanceSheetPage } from "./pages/BalanceSheetPage";
+import { ModernFinanceManagementPage } from "./pages/ModernFinanceManagementPage";
+import { ShopDetailsPage } from "./pages/ShopDetailsPage";
 import { AdminProfilePage } from "./pages/AdminProfilePage";
 
 const queryClient = new QueryClient({
@@ -197,51 +198,51 @@ function App() {
                     element={
                       <AdminRoute>
                         <Layout>
-                          <ManagerOnboardingPage />
+                          <ManagerPage />
                         </Layout>
                       </AdminRoute>
                     }
                   />
 
                   <Route
-                    path="/admin/managers/create"
+                    path="/admin/finance"
                     element={
                       <AdminRoute>
                         <Layout>
-                          <ManagerOnboardingPage />
+                          <EnhancedFinanceManagementPage />
                         </Layout>
                       </AdminRoute>
                     }
                   />
 
                   <Route
-                    path="/admin/managers/list"
+                    path="/tamil-nadu-finance"
                     element={
                       <AdminRoute>
                         <Layout>
-                          <ManagerListPage />
+                          <TamilNaduFinanceManagementPage />
                         </Layout>
                       </AdminRoute>
                     }
                   />
 
                   <Route
-                    path="/admin/reports/transactions"
+                    path="/tamil-nadu-audit-report"
                     element={
                       <AdminRoute>
                         <Layout>
-                          <TransactionReportPage />
+                          <TamilNaduAuditReportPage />
                         </Layout>
                       </AdminRoute>
                     }
                   />
 
                   <Route
-                    path="/admin/reports/audit"
+                    path="/audit-report"
                     element={
                       <AdminRoute>
                         <Layout>
-                          <AuditReportPage />
+                          <TamilNaduAuditReportPage />
                         </Layout>
                       </AdminRoute>
                     }
@@ -275,6 +276,17 @@ function App() {
                       <AdminRoute>
                         <Layout>
                           <BalanceSheetPage />
+                        </Layout>
+                      </AdminRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/admin/modern-finance"
+                    element={
+                      <AdminRoute>
+                        <Layout>
+                          <ModernFinanceManagementPage />
                         </Layout>
                       </AdminRoute>
                     }

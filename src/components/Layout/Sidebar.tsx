@@ -59,21 +59,14 @@ const menuItems = [
     submenu: [
       { path: "/admin/profile", label: "Admin Profile", icon: UserCog },
       { path: "/admin/items", label: "Item Management", icon: Package },
-      { path: "/admin/managers", label: "Manager Onboarding", icon: Users },
-      { path: "/admin/managers/list", label: "Manager List", icon: List },
-      { path: "/admin/shop-details", label: "Shop Details", icon: Settings },
+      { path: "/admin/managers", label: "Manager Management", icon: Users },
+      {
+        path: "/admin/modern-finance",
+        label: "Finance Management",
+        icon: TrendingUp,
+      },
       { path: "/admin/expenses", label: "Expense Management", icon: Receipt },
-      {
-        path: "/admin/balance-sheet",
-        label: "Balance Sheet",
-        icon: TrendingUp,
-      },
-      {
-        path: "/admin/reports/transactions",
-        label: "Transaction Reports",
-        icon: TrendingUp,
-      },
-      { path: "/admin/reports/audit", label: "Audit Reports", icon: Receipt },
+      { path: "/admin/shop-details", label: "Shop Details", icon: Settings },
     ],
   },
   {

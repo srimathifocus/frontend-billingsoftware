@@ -150,12 +150,12 @@ export const AdminProfilePage = () => {
   return (
     <div className="max-w-2xl mx-auto p-6">
       <div className="flex items-center gap-4 mb-6">
-        <button
+        {/* <button
           onClick={() => navigate("/dashboard")}
           className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
         >
           <ArrowLeft className="h-5 w-5" />
-        </button>
+        </button> */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Admin Profile

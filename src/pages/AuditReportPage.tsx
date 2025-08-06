@@ -24,6 +24,62 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import api from "../utils/api";
 
+interface LoanSummary {
+  loanId: string;
+  customerName: string;
+  amount: number;
+  status: string;
+  loanDate: string;
+  dueDate: string;
+  extendedDate?: string;
+}
+
+interface CustomerInterestAnalysis {
+  customerName: string;
+  totalLoansGiven: number;
+  totalRepaid: number;
+  interestEarned: number;
+  outstanding: number;
+}
+
+interface MonthlyProfitLoss {
+  month: string;
+  loansGiven: number;
+  repayments: number;
+  interestIncome: number;
+  expenses: number;
+  netProfit: number;
+}
+
+interface TransactionSummary {
+  totalTransactions: number;
+  loanTransactions: number;
+  repaymentTransactions: number;
+  cashTransactions: number;
+  onlineTransactions: number;
+  avgTransactionValue: number;
+}
+
+interface LoanRegisterDetail {
+  loanId: string;
+  customerName: string;
+  itemDescription: string;
+  itemWeight: number;
+  loanAmount: number;
+  interestPercent: number;
+  status: string;
+  loanDate: string;
+}
+
+interface LoanRegisterStats {
+  totalPledgedLoans: number;
+  activeLoans: number;
+  settledLoans: number;
+  forfeitedLoans: number;
+  totalLoanValue: number;
+  totalItemWeight: number;
+}
+
 interface AuditReportData {
   title: string;
   auditPeriod: string;
@@ -36,10 +92,11 @@ interface AuditReportData {
     totalLoans: number;
     totalLoanValue: number;
     activeLoans: number;
-    settledLoans: number;
+    repaidLoans: number;
+    settledLoans?: number;
     forfeitedLoans: number;
     totalCustomers: number;
-    complianceStatus: string;
+    complianceStatus?: string;
   };
   balanceSheet: {
     assets: {
@@ -103,6 +160,23 @@ interface AuditReportData {
     waivedInterest: number;
   };
 
+  // New enhanced data sections
+  loanSummary?: LoanSummary[];
+  customerInterestAnalysis?: CustomerInterestAnalysis[];
+  monthlyProfitLoss?: MonthlyProfitLoss[];
+  monthlyTotals?: {
+    totalLoansGiven: number;
+    totalRepayments: number;
+    totalInterestIncome: number;
+    totalExpenses: number;
+    totalNetProfit: number;
+  };
+  transactionSummary?: TransactionSummary;
+
+  // Loan Register Details
+  loanRegisterDetails?: LoanRegisterDetail[];
+  loanRegisterStats?: LoanRegisterStats;
+
   observations: string[];
   conclusion: string;
 }
@@ -110,6 +184,13 @@ interface AuditReportData {
 export const AuditReportPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [reportType, setReportType] = useState("financial");
+  const [year, setYear] = useState("");
+  const [month, setMonth] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  // Legacy support
   const [financialYear, setFinancialYear] = useState("");
   const [startMonth, setStartMonth] = useState("");
   const [endMonth, setEndMonth] = useState("");
@@ -158,12 +239,62 @@ export const AuditReportPage = () => {
     error,
     refetch,
   } = useQuery<AuditReportData>({
-    queryKey: ["auditReport", financialYear, startMonth, endMonth],
+    queryKey: [
+      "auditReport",
+      reportType,
+      year,
+      month,
+      startDate,
+      endDate,
+      financialYear,
+      startMonth,
+      endMonth,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (financialYear) params.append("financialYear", financialYear);
-      if (startMonth) params.append("startMonth", startMonth);
-      if (endMonth) params.append("endMonth", endMonth);
+
+      // New API parameters
+      if (reportType) params.append("reportType", reportType);
+      if (year) params.append("year", year);
+      if (month) params.append("month", month);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+
+      // Legacy support - convert to new format
+      if (financialYear && startMonth && endMonth) {
+        // Convert financial year + month range to custom range
+        const fyYear = parseInt(financialYear);
+        const sMonth = parseInt(startMonth);
+        const eMonth = parseInt(endMonth);
+
+        // Handle cross-year scenarios for financial year
+        let startYear = fyYear;
+        let endYear = fyYear;
+
+        if (sMonth >= 4) {
+          // Start month is Apr-Dec, end month could be in next year
+          if (eMonth < 4) {
+            endYear = fyYear + 1;
+          }
+        } else {
+          // Start month is Jan-Mar, must be in the next year of FY
+          startYear = fyYear + 1;
+          endYear = fyYear + 1;
+        }
+
+        const startDate = `${startYear}-${sMonth
+          .toString()
+          .padStart(2, "0")}-01`;
+        const endDateMoment = new Date(endYear, eMonth - 1 + 1, 0); // Last day of the month
+        const endDate = endDateMoment.toISOString().split("T")[0];
+
+        params.set("reportType", "custom");
+        params.set("startDate", startDate);
+        params.set("endDate", endDate);
+      } else if (financialYear) {
+        params.set("reportType", "financial");
+        params.set("year", financialYear);
+      }
 
       const queryString = params.toString();
       const response = await api.get(
@@ -179,6 +310,24 @@ export const AuditReportPage = () => {
   });
 
   const handleGenerateReport = () => {
+    // Validate required fields based on report type
+    if (reportType === "financial" && !year) {
+      alert("Please select a financial year");
+      return;
+    }
+    if (reportType === "monthly" && (!year || !month)) {
+      alert("Please select both year and month");
+      return;
+    }
+    if (reportType === "yearly" && !year) {
+      alert("Please select a year");
+      return;
+    }
+    if (reportType === "custom" && (!startDate || !endDate)) {
+      alert("Please select both start and end dates");
+      return;
+    }
+
     // Clear the cache to force fresh data fetch
     queryClient.invalidateQueries({ queryKey: ["auditReport"] });
     // Manually trigger the fetch with current parameters
@@ -192,14 +341,51 @@ export const AuditReportPage = () => {
   }
 
   const handleServerPdfDownload = async () => {
-    if (!financialYear) {
-      alert("Please select a financial year first");
-      return;
-    }
-
     try {
       const params = new URLSearchParams();
-      params.append("financialYear", financialYear);
+
+      // New API parameters
+      if (reportType) params.append("reportType", reportType);
+      if (year) params.append("year", year);
+      if (month) params.append("month", month);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+
+      // Legacy support - convert to new format
+      if (financialYear && startMonth && endMonth) {
+        // Convert financial year + month range to custom range
+        const fyYear = parseInt(financialYear);
+        const sMonth = parseInt(startMonth);
+        const eMonth = parseInt(endMonth);
+
+        // Handle cross-year scenarios for financial year
+        let startYear = fyYear;
+        let endYear = fyYear;
+
+        if (sMonth >= 4) {
+          // Start month is Apr-Dec, end month could be in next year
+          if (eMonth < 4) {
+            endYear = fyYear + 1;
+          }
+        } else {
+          // Start month is Jan-Mar, must be in the next year of FY
+          startYear = fyYear + 1;
+          endYear = fyYear + 1;
+        }
+
+        const startDate = `${startYear}-${sMonth
+          .toString()
+          .padStart(2, "0")}-01`;
+        const endDateMoment = new Date(endYear, eMonth - 1 + 1, 0); // Last day of the month
+        const endDate = endDateMoment.toISOString().split("T")[0];
+
+        params.set("reportType", "custom");
+        params.set("startDate", startDate);
+        params.set("endDate", endDate);
+      } else if (financialYear) {
+        params.set("reportType", "financial");
+        params.set("year", financialYear);
+      }
 
       const response = await api.get(
         `/reports/audit/download?${params.toString()}`,
@@ -212,7 +398,27 @@ export const AuditReportPage = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `audit-report-${financialYear}.pdf`;
+
+      // Generate filename based on report type
+      let filename = "audit-report";
+      switch (reportType) {
+        case "monthly":
+          filename += `-monthly-${year}-${month?.padStart(2, "0")}`;
+          break;
+        case "yearly":
+          filename += `-yearly-${year}`;
+          break;
+        case "custom":
+          filename += `-custom-${startDate}-to-${endDate}`;
+          break;
+        case "financial":
+        default:
+          filename += `-fy-${year || financialYear}`;
+          break;
+      }
+      filename += ".pdf";
+
+      a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
@@ -697,10 +903,45 @@ export const AuditReportPage = () => {
             text-align: right; 
         }
         
+        .text-center { 
+            text-align: center; 
+        }
+        
         .total-row { 
             font-weight: bold; 
             border-top: 2px solid #000; 
             background-color: #f9f9f9;
+        }
+        
+        .stats-grid {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+            border: 1px solid #000;
+        }
+        
+        .stat-item {
+            display: table-cell;
+            text-align: center;
+            padding: 10px;
+            width: 20%;
+            border-right: 1px solid #000;
+            vertical-align: middle;
+        }
+        
+        .stat-item:last-child {
+            border-right: none;
+        }
+        
+        .stat-value {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 9pt;
+            color: #666;
         }
         
         .observations ul { 
@@ -833,15 +1074,88 @@ export const AuditReportPage = () => {
         </table>
     </div>
 
+    ${
+      auditData.loanRegisterDetails && auditData.loanRegisterDetails.length > 0
+        ? `
+    <div class="section">
+        <div class="section-title">4. DETAILED LOAN REGISTER SUMMARY</div>
+        
+        ${
+          auditData.loanRegisterStats
+            ? `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">${
+                  auditData.loanRegisterStats.totalPledgedLoans
+                }</div>
+                <div class="stat-label">Total Pledged Loans</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${
+                  auditData.loanRegisterStats.activeLoans
+                }</div>
+                <div class="stat-label">Active Loans</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${
+                  auditData.loanRegisterStats.settledLoans
+                }</div>
+                <div class="stat-label">Settled Loans</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${
+                  auditData.loanRegisterStats.forfeitedLoans
+                }</div>
+                <div class="stat-label">Forfeited Loans</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">Rs. ${auditData.loanRegisterStats.totalLoanValue.toLocaleString()}</div>
+                <div class="stat-label">Total Loan Value</div>
+            </div>
+        </div>
+        `
+            : ""
+        }
+        
+        <table class="financial-table">
+            <tr><th>Loan ID</th><th>Customer</th><th>Item & Weight</th><th>Loan Amount</th><th>Interest %</th><th>Status</th></tr>
+            ${auditData.loanRegisterDetails
+              .slice(0, 15)
+              .map(
+                (loan) => `
+            <tr>
+                <td>${loan.loanId}</td>
+                <td>${loan.customerName}</td>
+                <td>${loan.itemDescription}${
+                  loan.itemWeight > 0 ? ` (${loan.itemWeight}g)` : ""
+                }</td>
+                <td class="text-right">Rs. ${loan.loanAmount.toLocaleString()}</td>
+                <td class="text-center">${loan.interestPercent}%</td>
+                <td class="text-center">${loan.status}</td>
+            </tr>
+            `
+              )
+              .join("")}
+        </table>
+        ${
+          auditData.loanRegisterDetails.length > 15
+            ? `<p class="text-center" style="margin-top: 10px; font-style: italic;">Showing first 15 loans out of ${auditData.loanRegisterDetails.length} total loans</p>`
+            : ""
+        }
+    </div>
+    `
+        : ""
+    }
+
     <div class="section observations">
-        <div class="section-title">4. AUDITOR OBSERVATIONS</div>
+        <div class="section-title">5. AUDITOR OBSERVATIONS</div>
         <ul>
             ${auditData.observations.map((obs) => `<li>${obs}</li>`).join("")}
         </ul>
     </div>
 
     <div class="section">
-        <div class="section-title">5. CONCLUSION</div>
+        <div class="section-title">6. CONCLUSION</div>
         <p>${auditData.conclusion}</p>
     </div>
 
@@ -893,12 +1207,7 @@ export const AuditReportPage = () => {
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+         
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
               Audit Report
@@ -928,86 +1237,239 @@ export const AuditReportPage = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Financial Year
-              </label>
-              <select
-                value={financialYear}
-                onChange={(e) => {
-                  setIsFormUpdating(true);
-                  setFinancialYear(e.target.value);
-                  setTimeout(() => setIsFormUpdating(false), 200);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
-              >
-                <option value="">Select Financial Year</option>
-                {yearOptions.map((year) => (
-                  <option key={year.value} value={year.value}>
-                    {year.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Start Month (Optional)
-              </label>
-              <select
-                value={startMonth}
-                onChange={(e) => {
-                  setIsFormUpdating(true);
-                  setStartMonth(e.target.value);
-                  if (e.target.value === "") setEndMonth(""); // Clear end month if start month is cleared
-                  setTimeout(() => setIsFormUpdating(false), 200);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
-              >
-                <option value="">All Months</option>
-                {monthOptions.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                End Month (Optional)
-              </label>
-              <select
-                value={endMonth}
-                onChange={(e) => {
-                  setIsFormUpdating(true);
-                  setEndMonth(e.target.value);
-                  setTimeout(() => setIsFormUpdating(false), 200);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 disabled:opacity-50"
-                disabled={!startMonth}
-              >
-                <option value="">Select End Month</option>
-                {monthOptions
-                  .filter(
-                    (month) =>
-                      !startMonth ||
-                      parseInt(month.value) >= parseInt(startMonth)
-                  )
-                  .map((month) => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-              </select>
-            </div>
+          {/* Report Type Selector */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Report Type
+            </label>
+            <select
+              value={reportType}
+              onChange={(e) => {
+                setIsFormUpdating(true);
+                setReportType(e.target.value);
+                // Reset other fields when report type changes
+                setYear("");
+                setMonth("");
+                setStartDate("");
+                setEndDate("");
+                setFinancialYear("");
+                setStartMonth("");
+                setEndMonth("");
+                setTimeout(() => setIsFormUpdating(false), 200);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+            >
+              <option value="financial">Financial Year Report</option>
+              <option value="monthly">Monthly Report</option>
+              <option value="yearly">Yearly Report</option>
+              <option value="custom">Custom Date Range</option>
+            </select>
           </div>
 
+          {/* Dynamic form fields based on report type */}
+          {reportType === "financial" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Financial Year
+                </label>
+                <select
+                  value={year}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setYear(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                >
+                  <option value="">Select Financial Year</option>
+                  {yearOptions.map((yearOpt) => (
+                    <option key={yearOpt.value} value={yearOpt.value}>
+                      {yearOpt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Month (Optional)
+                </label>
+                <select
+                  value={startMonth}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setStartMonth(e.target.value);
+                    if (e.target.value === "") setEndMonth("");
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                >
+                  <option value="">All Months</option>
+                  {monthOptions.map((monthOpt) => (
+                    <option key={monthOpt.value} value={monthOpt.value}>
+                      {monthOpt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  End Month (Optional)
+                </label>
+                <select
+                  value={endMonth}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setEndMonth(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 disabled:opacity-50"
+                  disabled={!startMonth}
+                >
+                  <option value="">Select End Month</option>
+                  {monthOptions
+                    .filter(
+                      (monthOpt) =>
+                        !startMonth ||
+                        parseInt(monthOpt.value) >= parseInt(startMonth)
+                    )
+                    .map((monthOpt) => (
+                      <option key={monthOpt.value} value={monthOpt.value}>
+                        {monthOpt.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {reportType === "monthly" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Year *
+                </label>
+                <select
+                  value={year}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setYear(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                >
+                  <option value="">Select Year</option>
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Month *
+                </label>
+                <select
+                  value={month}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setMonth(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                >
+                  <option value="">Select Month</option>
+                  {monthOptions.map((monthOpt) => (
+                    <option key={monthOpt.value} value={monthOpt.value}>
+                      {monthOpt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {reportType === "yearly" && (
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Year *
+                </label>
+                <select
+                  value={year}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setYear(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                >
+                  <option value="">Select Year</option>
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {reportType === "custom" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Date *
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setStartDate(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  End Date *
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setIsFormUpdating(true);
+                    setEndDate(e.target.value);
+                    setTimeout(() => setIsFormUpdating(false), 200);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            <p>• Select a financial year to generate the audit report</p>
-            <p>• Optionally specify month range (e.g., Jan to Mar 2025)</p>
-            <p>• Leave months empty to include the entire financial year</p>
+            {reportType === "financial" && (
+              <>
+                <p>• Select a financial year to generate the audit report</p>
+                <p>
+                  • Optionally specify month range within the financial year
+                </p>
+                <p>• Leave months empty to include the entire financial year</p>
+              </>
+            )}
+            {reportType === "monthly" && (
+              <p>• Generate report for a specific month and year</p>
+            )}
+            {reportType === "yearly" && (
+              <p>• Generate report for an entire calendar year (Jan-Dec)</p>
+            )}
+            {reportType === "custom" && (
+              <p>• Generate report for a custom date range</p>
+            )}
           </div>
 
           <div className="flex justify-end">
@@ -1069,9 +1531,8 @@ export const AuditReportPage = () => {
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
                     <Download className="h-4 w-4" />
-                     PDF
+                    PDF
                   </button>
-                  
                 </div>
               </div>
             </div>
@@ -1392,10 +1853,151 @@ export const AuditReportPage = () => {
               </div>
             </div>
 
+            {/* Detailed Loan Register */}
+            {auditData.loanRegisterDetails &&
+              auditData.loanRegisterDetails.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    4. Detailed Loan Register Summary
+                  </h3>
+
+                  {/* Statistics Summary */}
+                  {auditData.loanRegisterStats && (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-blue-600">
+                          {auditData.loanRegisterStats.totalPledgedLoans}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Total Pledged Loans
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-green-600">
+                          {auditData.loanRegisterStats.activeLoans}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Active Loans
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-purple-600">
+                          {auditData.loanRegisterStats.settledLoans}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Settled Loans
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-red-600">
+                          {auditData.loanRegisterStats.forfeitedLoans}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Forfeited Loans
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-orange-600">
+                          {formatCurrency(
+                            auditData.loanRegisterStats.totalLoanValue
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Total Loan Value
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loan Register Table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Loan ID
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Customer
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Item & Weight (gm)
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Loan Amt (INR)
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Interest %
+                          </th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {auditData.loanRegisterDetails
+                          .slice(0, 20)
+                          .map((loan, index) => (
+                            <tr
+                              key={index}
+                              className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                {loan.loanId}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                {loan.customerName}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                <div>
+                                  <div>{loan.itemDescription}</div>
+                                  {loan.itemWeight > 0 && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      {loan.itemWeight}g
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
+                                {formatCurrency(loan.loanAmount)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-white">
+                                {loan.interestPercent}%
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <span
+                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    loan.status === "Active"
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : loan.status === "Settled"
+                                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                      : loan.status === "Forfeited"
+                                      ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                                  }`}
+                                >
+                                  {loan.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {auditData.loanRegisterDetails.length > 20 && (
+                    <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      Showing first 20 loans out of{" "}
+                      {auditData.loanRegisterDetails.length} total loans
+                    </div>
+                  )}
+                </div>
+              )}
+
             {/* Auditor Observations */}
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                4. Auditor Observations
+                5. Auditor Observations
               </h3>
               <ul className="space-y-2">
                 {auditData.observations.map((observation, index) => (
@@ -1412,7 +2014,7 @@ export const AuditReportPage = () => {
             {/* Conclusion */}
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                5. Conclusion
+                6. Conclusion
               </h3>
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 {auditData.conclusion}
