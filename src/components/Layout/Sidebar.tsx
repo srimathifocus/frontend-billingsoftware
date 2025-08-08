@@ -50,7 +50,7 @@ const menuItems = [
   {
     path: "/repayments/manage",
     icon: Receipt,
-    label: "💰 Loan Repayments",
+    label: "Loan Repayments",
   },
   {
     path: "/customers",

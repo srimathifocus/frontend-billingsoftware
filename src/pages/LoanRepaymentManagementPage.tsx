@@ -297,7 +297,7 @@ export const LoanRepaymentManagementPage = () => {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  💰 Loan Repayment Management
+                   Loan Repayment Management
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Manage loan repayments with automatic interest calculation
@@ -632,7 +632,7 @@ export const LoanRepaymentManagementPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl w-full max-h-96 overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                💰 Process Loan Repayment
+                Process Loan Repayment
               </h3>
               <button
                 onClick={() => setShowRepaymentModal(false)}
