@@ -56,8 +56,6 @@ const TransactionReportPage = () => {
 
   // Calculate date ranges based on filter type
   const getDateRange = () => {
-    const now = new Date();
-
     // Helper function to format date as YYYY-MM-DD in local timezone
     const formatLocalDate = (date: Date) => {
       const year = date.getFullYear();
@@ -66,6 +64,9 @@ const TransactionReportPage = () => {
       return `${year}-${month}-${day}`;
     };
 
+    // Get current date for each calculation to avoid timezone issues
+    const getCurrentDate = () => new Date();
+
     switch (filterType) {
       case "all_time":
         return {
@@ -73,30 +74,33 @@ const TransactionReportPage = () => {
           endDate: "", // No end date filter
         };
       case "today":
-        const todayStr = formatLocalDate(now);
+        const todayDate = getCurrentDate();
+        const todayStr = formatLocalDate(todayDate);
         return {
           startDate: todayStr,
           endDate: todayStr,
         };
       case "yesterday":
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = formatLocalDate(yesterday);
+        const yesterdayDate = getCurrentDate();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = formatLocalDate(yesterdayDate);
         return {
           startDate: yesterdayStr,
           endDate: yesterdayStr,
         };
       case "this_week":
         // Last 7 days including today
-        const sevenDaysAgo = new Date(now);
-        sevenDaysAgo.setDate(now.getDate() - 6); // 6 days ago + today = 7 days
+        const thisWeekEnd = getCurrentDate();
+        const sevenDaysAgo = getCurrentDate();
+        sevenDaysAgo.setDate(thisWeekEnd.getDate() - 6); // 6 days ago + today = 7 days
         return {
           startDate: formatLocalDate(sevenDaysAgo),
-          endDate: formatLocalDate(now),
+          endDate: formatLocalDate(thisWeekEnd),
         };
       case "last_week":
-        const lastWeekStart = new Date(now);
-        lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
+        const lastWeekRef = getCurrentDate();
+        const lastWeekStart = getCurrentDate();
+        lastWeekStart.setDate(lastWeekRef.getDate() - lastWeekRef.getDay() - 7);
         const lastWeekEnd = new Date(lastWeekStart);
         lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
         return {
@@ -104,31 +108,43 @@ const TransactionReportPage = () => {
           endDate: formatLocalDate(lastWeekEnd),
         };
       case "this_month":
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return {
-          startDate: formatLocalDate(startOfMonth),
-          endDate: formatLocalDate(now),
-        };
-      case "last_month":
-        const lastMonthStart = new Date(
-          now.getFullYear(),
-          now.getMonth() - 1,
+        const thisMonthRef = getCurrentDate();
+        const startOfMonth = new Date(
+          thisMonthRef.getFullYear(),
+          thisMonthRef.getMonth(),
           1
         );
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        return {
+          startDate: formatLocalDate(startOfMonth),
+          endDate: formatLocalDate(thisMonthRef),
+        };
+      case "last_month":
+        const lastMonthRef = getCurrentDate();
+        const lastMonthStart = new Date(
+          lastMonthRef.getFullYear(),
+          lastMonthRef.getMonth() - 1,
+          1
+        );
+        const lastMonthEnd = new Date(
+          lastMonthRef.getFullYear(),
+          lastMonthRef.getMonth(),
+          0
+        );
         return {
           startDate: formatLocalDate(lastMonthStart),
           endDate: formatLocalDate(lastMonthEnd),
         };
       case "this_year":
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const thisYearRef = getCurrentDate();
+        const startOfYear = new Date(thisYearRef.getFullYear(), 0, 1);
         return {
           startDate: formatLocalDate(startOfYear),
-          endDate: formatLocalDate(now),
+          endDate: formatLocalDate(thisYearRef),
         };
       case "last_year":
-        const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-        const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+        const lastYearRef = getCurrentDate();
+        const lastYearStart = new Date(lastYearRef.getFullYear() - 1, 0, 1);
+        const lastYearEnd = new Date(lastYearRef.getFullYear() - 1, 11, 31);
         return {
           startDate: formatLocalDate(lastYearStart),
           endDate: formatLocalDate(lastYearEnd),
@@ -139,7 +155,8 @@ const TransactionReportPage = () => {
           endDate: customEndDate,
         };
       default:
-        const defaultStr = formatLocalDate(now);
+        const defaultDate = getCurrentDate();
+        const defaultStr = formatLocalDate(defaultDate);
         return {
           startDate: defaultStr,
           endDate: defaultStr,
@@ -150,10 +167,38 @@ const TransactionReportPage = () => {
   const { startDate, endDate } = getDateRange();
 
   // Debug: Log the date range with more details
-  const now = new Date();
-  console.log("🕐 Current time:", now.toISOString());
-  console.log("📅 Date range:", { filterType, startDate, endDate });
-  console.log("📅 Today should be:", now.toISOString().split("T")[0]);
+  const debugNow = new Date();
+  console.log("🕐 Current time:", debugNow.toISOString());
+  console.log("🕐 Current local time:", debugNow.toLocaleString());
+  console.log("📅 Current date parts:", {
+    year: debugNow.getFullYear(),
+    month: debugNow.getMonth() + 1,
+    date: debugNow.getDate(),
+  });
+  console.log("📅 Date range calculated:", { filterType, startDate, endDate });
+  console.log(
+    "📅 Expected today:",
+    `${debugNow.getFullYear()}-${String(debugNow.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(debugNow.getDate()).padStart(2, "0")}`
+  );
+
+  // Test date calculations for debugging
+  if (filterType === "yesterday") {
+    const testYesterday = new Date(debugNow);
+    testYesterday.setDate(testYesterday.getDate() - 1);
+    console.log("🧪 Yesterday calculation test:");
+    console.log("  Original date:", debugNow.toISOString());
+    console.log("  Yesterday date:", testYesterday.toISOString());
+    console.log(
+      "  Yesterday formatted:",
+      `${testYesterday.getFullYear()}-${String(
+        testYesterday.getMonth() + 1
+      ).padStart(2, "0")}-${String(testYesterday.getDate()).padStart(2, "0")}`
+    );
+    console.log("  Should be 2025-08-07 if today is 2025-08-08");
+  }
 
   // Fetch transactions
   const {
