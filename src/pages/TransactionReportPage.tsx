@@ -57,7 +57,14 @@ const TransactionReportPage = () => {
   // Calculate date ranges based on filter type
   const getDateRange = () => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Helper function to format date as YYYY-MM-DD in local timezone
+    const formatLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
 
     switch (filterType) {
       case "all_time":
@@ -66,39 +73,41 @@ const TransactionReportPage = () => {
           endDate: "", // No end date filter
         };
       case "today":
+        const todayStr = formatLocalDate(now);
         return {
-          startDate: today.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: todayStr,
+          endDate: todayStr,
         };
       case "yesterday":
-        const yesterday = new Date(today);
+        const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = formatLocalDate(yesterday);
         return {
-          startDate: yesterday.toISOString().split("T")[0],
-          endDate: yesterday.toISOString().split("T")[0],
+          startDate: yesterdayStr,
+          endDate: yesterdayStr,
         };
       case "this_week":
         // Last 7 days including today
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6); // 6 days ago + today = 7 days
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 6); // 6 days ago + today = 7 days
         return {
-          startDate: sevenDaysAgo.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: formatLocalDate(sevenDaysAgo),
+          endDate: formatLocalDate(now),
         };
       case "last_week":
-        const lastWeekStart = new Date(today);
-        lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
+        const lastWeekStart = new Date(now);
+        lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
         const lastWeekEnd = new Date(lastWeekStart);
         lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
         return {
-          startDate: lastWeekStart.toISOString().split("T")[0],
-          endDate: lastWeekEnd.toISOString().split("T")[0],
+          startDate: formatLocalDate(lastWeekStart),
+          endDate: formatLocalDate(lastWeekEnd),
         };
       case "this_month":
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         return {
-          startDate: startOfMonth.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: formatLocalDate(startOfMonth),
+          endDate: formatLocalDate(now),
         };
       case "last_month":
         const lastMonthStart = new Date(
@@ -108,21 +117,21 @@ const TransactionReportPage = () => {
         );
         const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
         return {
-          startDate: lastMonthStart.toISOString().split("T")[0],
-          endDate: lastMonthEnd.toISOString().split("T")[0],
+          startDate: formatLocalDate(lastMonthStart),
+          endDate: formatLocalDate(lastMonthEnd),
         };
       case "this_year":
         const startOfYear = new Date(now.getFullYear(), 0, 1);
         return {
-          startDate: startOfYear.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: formatLocalDate(startOfYear),
+          endDate: formatLocalDate(now),
         };
       case "last_year":
         const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
         const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
         return {
-          startDate: lastYearStart.toISOString().split("T")[0],
-          endDate: lastYearEnd.toISOString().split("T")[0],
+          startDate: formatLocalDate(lastYearStart),
+          endDate: formatLocalDate(lastYearEnd),
         };
       case "custom":
         return {
@@ -130,9 +139,10 @@ const TransactionReportPage = () => {
           endDate: customEndDate,
         };
       default:
+        const defaultStr = formatLocalDate(now);
         return {
-          startDate: today.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: defaultStr,
+          endDate: defaultStr,
         };
     }
   };
@@ -408,7 +418,7 @@ const TransactionReportPage = () => {
           Filters
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Time Period Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -463,30 +473,40 @@ const TransactionReportPage = () => {
               <option value="online">Online Only</option>
             </select>
           </div>
+        </div>
 
-          {/* Custom Date Range */}
-          {filterType === "custom" && (
-            <div className="md:col-span-2 lg:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Date Range
-              </label>
-              <div className="flex gap-2">
+        {/* Custom Date Range - Separate row */}
+        {filterType === "custom" && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Custom Date Range
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Start Date
+                </label>
                 <input
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  End Date
+                </label>
                 <input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Current Filter Display */}
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
