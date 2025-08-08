@@ -78,10 +78,11 @@ const TransactionReportPage = () => {
           endDate: yesterday.toISOString().split("T")[0],
         };
       case "this_week":
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
+        // Last 7 days including today
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 6); // 6 days ago + today = 7 days
         return {
-          startDate: startOfWeek.toISOString().split("T")[0],
+          startDate: sevenDaysAgo.toISOString().split("T")[0],
           endDate: today.toISOString().split("T")[0],
         };
       case "last_week":
@@ -138,8 +139,11 @@ const TransactionReportPage = () => {
 
   const { startDate, endDate } = getDateRange();
 
-  // Debug: Log the date range
-  console.log("Date range:", { filterType, startDate, endDate });
+  // Debug: Log the date range with more details
+  const now = new Date();
+  console.log("🕐 Current time:", now.toISOString());
+  console.log("📅 Date range:", { filterType, startDate, endDate });
+  console.log("📅 Today should be:", now.toISOString().split("T")[0]);
 
   // Fetch transactions
   const {
