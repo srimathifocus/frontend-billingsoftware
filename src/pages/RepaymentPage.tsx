@@ -15,12 +15,12 @@ import {
   AlertCircle,
   ArrowLeft,
   Calculator,
-  Download,
   X,
 } from "lucide-react";
 import api from "../utils/api";
 import { RepaymentSearchResult, Payment } from "../types";
 import { colors, themeConfig } from "../theme/colors";
+import { InvoiceViewButtons } from "../components/InvoiceViewButtons";
 
 const searchLoanForRepayment = async (
   identifier: string
@@ -88,67 +88,6 @@ export const RepaymentPage = () => {
       );
     },
   });
-
-  // Direct download function - using loanObjectId for API, loanId for filename
-  const downloadInvoice = async (
-    loanObjectId: string,
-    loanId: string,
-    type: "billing" | "repayment"
-  ) => {
-    try {
-      const endpoint =
-        type === "billing"
-          ? `/invoice/loan/${loanObjectId}/pdf`
-          : `/invoice/repayment/${loanObjectId}/pdf`;
-
-      console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
-      toast.info(`Preparing ${type} invoice for download...`);
-
-      const response = await api.get(endpoint, {
-        responseType: "blob",
-        headers: {
-          Accept: "application/pdf",
-        },
-      });
-
-      // Check if response is actually a PDF
-      if (response.data.type !== "application/pdf") {
-        console.error("Response is not a PDF:", response.data.type);
-        toast.error("Invalid PDF response from server");
-        return;
-      }
-
-      const blob = new Blob([response.data], {
-        type: "application/pdf",
-      });
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const prefix = type === "billing" ? "B" : "R";
-      link.download = `${prefix}-${loanId}.pdf`;
-
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-
-      toast.success(`${type} invoice downloaded successfully!`);
-    } catch (error: any) {
-      console.error(`Error downloading ${type} invoice:`, error);
-
-      if (error.response?.status === 404) {
-        toast.error(`${type} invoice not found for this loan`);
-      } else if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please login again.");
-      } else {
-        toast.error(`Failed to download ${type} invoice. Please try again.`);
-      }
-    }
-  };
 
   // Auto-search when loanId is provided in URL
   useEffect(() => {
@@ -672,36 +611,14 @@ export const RepaymentPage = () => {
                 </div>
 
                 {/* Download Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() =>
-                      downloadInvoice(
-                        repaymentSuccess.loanObjectId,
-                        repaymentSuccess.loanId,
-                        "billing"
-                      )
-                    }
-                    className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
-                    style={{ backgroundColor: colors.primary.dark }}
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Download Billing Invoice</span>
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      downloadInvoice(
-                        repaymentSuccess.loanObjectId,
-                        repaymentSuccess.loanId,
-                        "repayment"
-                      )
-                    }
-                    className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
-                    style={{ backgroundColor: colors.primary.medium }}
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Download Repayment Invoice</span>
-                  </button>
+                <div className="flex justify-center">
+                  <InvoiceViewButtons
+                    loanObjectId={repaymentSuccess.loanObjectId}
+                    loanId={repaymentSuccess.loanId}
+                    customerName={repaymentSuccess.customer?.name || "Customer"}
+                    billingAvailable={true}
+                    repaymentAvailable={true}
+                  />
                 </div>
               </div>
             </div>

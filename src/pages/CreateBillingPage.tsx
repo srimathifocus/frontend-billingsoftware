@@ -21,7 +21,6 @@ import {
   Info,
   CheckCircle2,
   AlertTriangle,
-  Download,
 } from "lucide-react";
 import api from "../utils/api";
 import { BillingCreateRequest } from "../types";
@@ -111,50 +110,6 @@ export const CreateBillingPage = () => {
     control,
     name: "items",
   });
-
-  // Direct download function - using loanObjectId for API, loanId for filename
-  const downloadInvoice = async (
-    loanObjectId: string,
-    loanId: string,
-    type: "billing" | "repayment"
-  ) => {
-    try {
-      const endpoint =
-        type === "billing"
-          ? `/invoice/loan/${loanObjectId}/pdf`
-          : `/invoice/repayment/${loanObjectId}/pdf`;
-
-      const response = await api.get(endpoint, {
-        responseType: "blob",
-        headers: {
-          Accept: "application/pdf",
-        },
-      });
-
-      const blob = new Blob([response.data], {
-        type: "application/pdf",
-      });
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const prefix = type === "billing" ? "B" : "R";
-      link.download = `${prefix}-${loanId}.pdf`;
-
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-
-      toast.success(`${type} invoice downloaded successfully!`);
-    } catch (error: any) {
-      console.error(`Error downloading ${type} invoice:`, error);
-      toast.error(`Failed to download ${type} invoice. Please try again.`);
-    }
-  };
 
   const mutation = useMutation({
     mutationFn: createBilling,
@@ -1323,22 +1278,15 @@ export const CreateBillingPage = () => {
                 </div>
               </div>
 
-              {/* Download Button */}
-              <div className="mt-4">
-                <button
-                  onClick={() =>
-                    downloadInvoice(
-                      createdLoanData.loanObjectId,
-                      createdLoanData.loanId,
-                      "billing"
-                    )
-                  }
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors w-full"
-                  style={{ backgroundColor: colors.primary.dark }}
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download Billing Invoice</span>
-                </button>
+              {/* Invoice View Buttons */}
+              <div className="mt-4 flex justify-center">
+                <InvoiceViewButtons
+                  loanObjectId={createdLoanData.loanObjectId}
+                  loanId={createdLoanData.loanId}
+                  customerName={createdLoanData.customerName}
+                  billingAvailable={true}
+                  repaymentAvailable={false}
+                />
               </div>
             </div>
           </div>

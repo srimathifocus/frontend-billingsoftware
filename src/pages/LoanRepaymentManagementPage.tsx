@@ -26,12 +26,12 @@ import {
   CheckCircle2,
   RefreshCw,
   CreditCard as PayIcon,
-  Download,
   X,
 } from "lucide-react";
 import api from "../utils/api";
 import { Loan, Payment } from "../types";
 import { colors, themeConfig } from "../theme/colors";
+import { InvoiceViewButtons } from "../components/InvoiceViewButtons";
 
 interface LoanWithCustomer extends Loan {
   customer: {
@@ -135,55 +135,6 @@ export const LoanRepaymentManagementPage = () => {
       console.error("Repayment error:", error);
     },
   });
-
-  // Direct download function - using loanObjectId for API, loanId for filename
-  const downloadInvoice = async (
-    loanObjectId: string,
-    loanId: string,
-    type: "billing" | "repayment"
-  ) => {
-    try {
-      const endpoint =
-        type === "billing"
-          ? `/invoice/loan/${loanObjectId}/pdf`
-          : `/invoice/repayment/${loanObjectId}/pdf`;
-
-      console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
-
-      const response = await api.get(endpoint, {
-        responseType: "blob",
-        headers: {
-          Accept: "application/pdf",
-        },
-      });
-
-      // Check if response is actually a PDF
-      if (response.data.type !== "application/pdf") {
-        console.error("Response is not a PDF:", response.data.type);
-        return;
-      }
-
-      const blob = new Blob([response.data], {
-        type: "application/pdf",
-      });
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const prefix = type === "billing" ? "B" : "R";
-      link.download = `${prefix}-${loanId}.pdf`;
-
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-    } catch (error: any) {
-      console.error(`Error downloading ${type} invoice:`, error);
-    }
-  };
 
   // Filter loans based on search and filter
   const filteredLoans = loans.filter((loan) => {
@@ -297,7 +248,7 @@ export const LoanRepaymentManagementPage = () => {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                   Loan Repayment Management
+                  Loan Repayment Management
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Manage loan repayments with automatic interest calculation
@@ -763,37 +714,15 @@ export const LoanRepaymentManagementPage = () => {
                 </div>
               </div>
 
-              {/* Download Buttons */}
-              <div className="flex flex-col gap-3 mt-4">
-                <button
-                  onClick={() =>
-                    downloadInvoice(
-                      repaymentSuccess.loanObjectId,
-                      repaymentSuccess.loanId,
-                      "billing"
-                    )
-                  }
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: colors.primary.dark }}
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download Billing Invoice</span>
-                </button>
-
-                <button
-                  onClick={() =>
-                    downloadInvoice(
-                      repaymentSuccess.loanObjectId,
-                      repaymentSuccess.loanId,
-                      "repayment"
-                    )
-                  }
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: colors.primary.medium }}
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download Repayment Invoice</span>
-                </button>
+              {/* Invoice View Buttons */}
+              <div className="mt-4 flex justify-center">
+                <InvoiceViewButtons
+                  loanObjectId={repaymentSuccess.loanObjectId}
+                  loanId={repaymentSuccess.loanId}
+                  customerName={repaymentSuccess.customer?.name || "Customer"}
+                  billingAvailable={true}
+                  repaymentAvailable={true}
+                />
               </div>
             </div>
           </div>

@@ -21,7 +21,6 @@ import {
   Trash2,
   History,
   Shield,
-  Download,
 } from "lucide-react";
 import api from "../utils/api";
 import { InvoiceViewButtons } from "../components/InvoiceViewButtons";
@@ -118,67 +117,6 @@ export const CustomerManagementPage = () => {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
-
-  // Direct download function
-  const downloadInvoice = async (
-    loanId: string,
-    type: "billing" | "repayment",
-    customerName: string
-  ) => {
-    try {
-      const endpoint =
-        type === "billing"
-          ? `/invoice/loan/${loanId}/pdf`
-          : `/invoice/repayment/${loanId}/pdf`;
-
-      console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
-      toast.info(`Preparing ${type} invoice for download...`);
-
-      const response = await api.get(endpoint, {
-        responseType: "blob",
-        headers: {
-          Accept: "application/pdf",
-        },
-      });
-
-      // Check if response is actually a PDF
-      if (response.data.type !== "application/pdf") {
-        console.error("Response is not a PDF:", response.data.type);
-        toast.error("Invalid PDF response from server");
-        return;
-      }
-
-      const blob = new Blob([response.data], {
-        type: "application/pdf",
-      });
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const prefix = type === "billing" ? "B" : "R";
-      link.download = `${prefix}-${loanId}.pdf`;
-
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-
-      toast.success(`${type} invoice downloaded successfully!`);
-    } catch (error: any) {
-      console.error(`Error downloading ${type} invoice:`, error);
-
-      if (error.response?.status === 404) {
-        toast.error(`${type} invoice not found for this loan`);
-      } else if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please login again.");
-      } else {
-        toast.error(`Failed to download ${type} invoice. Please try again.`);
-      }
-    }
-  };
 
   const {
     data: customers,
@@ -655,45 +593,18 @@ export const CustomerManagementPage = () => {
                               </div>
                             </div>
 
-                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                              {invoice.billingInvoiceAvailable && (
-                                <button
-                                  onClick={() =>
-                                    downloadInvoice(
-                                      invoice.loanObjectId,
-                                      "billing",
-                                      invoice.customerName
-                                    )
-                                  }
-                                  className="flex items-center justify-center space-x-1 px-3 py-2 text-white text-sm rounded-lg hover:opacity-90 transition-colors"
-                                  style={{
-                                    backgroundColor: colors.primary.dark,
-                                  }}
-                                  title="Download Billing Invoice PDF"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  <span>Billing</span>
-                                </button>
-                              )}
-                              {invoice.repaymentInvoiceAvailable && (
-                                <button
-                                  onClick={() =>
-                                    downloadInvoice(
-                                      invoice.loanObjectId,
-                                      "repayment",
-                                      invoice.customerName
-                                    )
-                                  }
-                                  className="flex items-center justify-center space-x-1 px-3 py-2 text-white text-sm rounded-lg hover:opacity-90 transition-colors"
-                                  style={{
-                                    backgroundColor: colors.primary.medium,
-                                  }}
-                                  title="Download Repayment Invoice PDF"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  <span>Repayment</span>
-                                </button>
-                              )}
+                            <div className="flex justify-center w-full sm:w-auto">
+                              <InvoiceViewButtons
+                                loanObjectId={invoice.loanObjectId}
+                                loanId={invoice.loanId}
+                                customerName={invoice.customerName}
+                                billingAvailable={
+                                  invoice.billingInvoiceAvailable
+                                }
+                                repaymentAvailable={
+                                  invoice.repaymentInvoiceAvailable
+                                }
+                              />
                             </div>
                           </div>
 
