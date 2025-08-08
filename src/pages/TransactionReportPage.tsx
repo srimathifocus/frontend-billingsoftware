@@ -163,22 +163,15 @@ const TransactionReportPage = () => {
       if (transactionType !== "all") params.append("type", transactionType);
       if (paymentMode !== "all") params.append("mode", paymentMode);
 
-      // First try without any filters to get ALL transactions
-      console.log("🔍 Fetching ALL transactions first...");
-      const allResponse = await api.get(`/transactions`);
-      console.log("📊 ALL transactions response:", allResponse.data);
-      console.log("📊 Total transactions in DB:", allResponse.data.length);
-
-      // Now try with filters
+      // Fetch transactions with filters
       console.log("🔍 Fetching with filters:", params.toString());
       const response = await api.get(`/transactions?${params.toString()}`);
       console.log("📊 Filtered response:", response.data);
       console.log("📊 Filtered count:", response.data.length);
 
-      // If no filtered results but we have data, use all data for now
-      const dataToUse =
-        response.data.length > 0 ? response.data : allResponse.data;
-      console.log("📊 Using data:", dataToUse.length, "records");
+      // Use the filtered data (even if empty - that's what filtering means!)
+      const dataToUse = response.data;
+      console.log("📊 Using filtered data:", dataToUse.length, "records");
 
       // Transform the data to match our interface
       const transformedData = dataToUse.map((transaction: any) => ({
@@ -498,6 +491,10 @@ const TransactionReportPage = () => {
             {startDate && endDate && ` (${startDate} to ${endDate})`}
             {transactionType !== "all" && ` • ${transactionType.toUpperCase()}`}
             {paymentMode !== "all" && ` • ${paymentMode.toUpperCase()}`}
+            <span className="ml-2 text-blue-600 dark:text-blue-300">
+              • Found {transactions.length} transaction
+              {transactions.length !== 1 ? "s" : ""}
+            </span>
           </p>
         </div>
       </div>
