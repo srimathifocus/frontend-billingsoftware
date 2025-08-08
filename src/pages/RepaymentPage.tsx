@@ -15,11 +15,12 @@ import {
   AlertCircle,
   ArrowLeft,
   Calculator,
+  Download,
+  X,
 } from "lucide-react";
 import api from "../utils/api";
 import { RepaymentSearchResult, Payment } from "../types";
 import { colors, themeConfig } from "../theme/colors";
-import { InvoiceModal } from "../components/InvoiceModal";
 
 const searchLoanForRepayment = async (
   identifier: string
@@ -53,7 +54,6 @@ export const RepaymentPage = () => {
     loanObjectId: string;
     payment: Payment;
   } | null>(null);
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const {
     register,
@@ -88,6 +88,67 @@ export const RepaymentPage = () => {
       );
     },
   });
+
+  // Direct download function - using loanObjectId for API, loanId for filename
+  const downloadInvoice = async (
+    loanObjectId: string,
+    loanId: string,
+    type: "billing" | "repayment"
+  ) => {
+    try {
+      const endpoint =
+        type === "billing"
+          ? `/invoice/loan/${loanObjectId}/pdf`
+          : `/invoice/repayment/${loanObjectId}/pdf`;
+
+      console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
+      toast.info(`Preparing ${type} invoice for download...`);
+
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+        headers: {
+          Accept: "application/pdf",
+        },
+      });
+
+      // Check if response is actually a PDF
+      if (response.data.type !== "application/pdf") {
+        console.error("Response is not a PDF:", response.data.type);
+        toast.error("Invalid PDF response from server");
+        return;
+      }
+
+      const blob = new Blob([response.data], {
+        type: "application/pdf",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const prefix = type === "billing" ? "B" : "R";
+      link.download = `${prefix}-${loanId}.pdf`;
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success(`${type} invoice downloaded successfully!`);
+    } catch (error: any) {
+      console.error(`Error downloading ${type} invoice:`, error);
+
+      if (error.response?.status === 404) {
+        toast.error(`${type} invoice not found for this loan`);
+      } else if (error.response?.status === 401) {
+        toast.error("Authentication failed. Please login again.");
+      } else {
+        toast.error(`Failed to download ${type} invoice. Please try again.`);
+      }
+    }
+  };
 
   // Auto-search when loanId is provided in URL
   useEffect(() => {
@@ -196,7 +257,6 @@ export const RepaymentPage = () => {
           online: Number(data.payment.online),
         },
       });
-      setShowInvoiceModal(true);
     } catch (error: any) {
       // Error is already handled in mutation onError
     }
@@ -214,7 +274,6 @@ export const RepaymentPage = () => {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex items-center gap-4 mb-6">
-       
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Loan Repayment
@@ -582,41 +641,68 @@ export const RepaymentPage = () => {
                 Amount: ₹{selectedLoan?.loan.totalDue?.toLocaleString()}
               </p>
 
-              <div className="flex flex-col gap-3">
-                <InvoiceModal
-                  isOpen={showInvoiceModal}
-                  onClose={() => {
-                    setShowInvoiceModal(false);
-                    setRepaymentSuccess(null);
-                    setSelectedLoan(null);
-                    setSearchTerm("");
-                  }}
-                  loanId={repaymentSuccess.loanId}
-                  loanObjectId={repaymentSuccess.loanObjectId}
-                  type="success"
-                  invoiceData={{
-                    customerName: selectedLoan.loan.customerId.name,
-                    customerPhone: selectedLoan.loan.customerId.phone,
-                    loanAmount: selectedLoan.loan.amount,
-                    totalAmount: selectedLoan.loan.totalDue,
-                    repaymentDate: new Date().toISOString(),
-                    payment: repaymentSuccess.payment,
-                    items: selectedLoan.loan.itemIds || [],
-                  }}
-                />
+              <div className="flex flex-col gap-4">
+                {/* Success Message with Close Button */}
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 relative">
+                  {/* Close Button */}
+                  <button
+                    onClick={() => {
+                      setRepaymentSuccess(null);
+                      setSelectedLoan(null);
+                      setSearchTerm("");
+                    }}
+                    className="absolute top-3 right-3 p-1 hover:bg-green-100 dark:hover:bg-green-800 rounded-full transition-colors"
+                    title="Close"
+                  >
+                    <X className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setShowInvoiceModal(false);
-                    setRepaymentSuccess(null);
-                    setSelectedLoan(null);
-                    setSearchTerm("");
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors justify-center"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Process Another Repayment
-                </button>
+                  <div className="flex items-center gap-3 pr-8">
+                    <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    <div>
+                      <h3 className="font-semibold text-green-800 dark:text-green-200">
+                        Payment Successful!
+                      </h3>
+                      <p className="text-sm text-green-600 dark:text-green-300">
+                        Loan {repaymentSuccess.loanId} has been fully repaid.
+                        Download your invoices below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Download Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() =>
+                      downloadInvoice(
+                        repaymentSuccess.loanObjectId,
+                        repaymentSuccess.loanId,
+                        "billing"
+                      )
+                    }
+                    className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
+                    style={{ backgroundColor: colors.primary.dark }}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Download Billing Invoice</span>
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      downloadInvoice(
+                        repaymentSuccess.loanObjectId,
+                        repaymentSuccess.loanId,
+                        "repayment"
+                      )
+                    }
+                    className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors"
+                    style={{ backgroundColor: colors.primary.medium }}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Download Repayment Invoice</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

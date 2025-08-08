@@ -44,8 +44,13 @@ const menuItems = [
     submenu: [
       { path: "/loans/active", label: "Active Loans", icon: List },
       { path: "/loans/inactive", label: "Completed Loans", icon: Eye },
-      { path: "/repayment", label: "Loan Repayment", icon: Receipt },
+      { path: "/repayment", label: "Search Repayment", icon: Search },
     ],
+  },
+  {
+    path: "/repayments/manage",
+    icon: Receipt,
+    label: "💰 Loan Repayments",
   },
   {
     path: "/customers",
@@ -72,7 +77,15 @@ const menuItems = [
   {
     label: "Transactions",
     icon: TrendingUp,
-    path: "/transactions",
+    id: "transactions",
+    submenu: [
+      { path: "/transactions", label: "Transaction List", icon: List },
+      {
+        path: "/transactions/report",
+        label: "Transaction Reports",
+        icon: Receipt,
+      },
+    ],
   },
 ];
 

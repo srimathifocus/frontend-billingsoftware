@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, FileText, Download, Printer, AlertCircle } from "lucide-react";
+import { X, FileText, Download, AlertCircle } from "lucide-react";
 import { colors } from "../theme/colors";
 import api from "../utils/api";
 import { toast } from "react-toastify";
@@ -38,14 +38,21 @@ export const InvoicePDFModal = ({
   }, [isOpen]);
 
   const loadPDF = async () => {
+    console.log("Loading PDF with:", { loanObjectId, loanId, invoiceType }); // Debug log
     setLoading(true);
     setError(null);
 
     try {
+      // Use loanObjectId if available, otherwise use loanId
+      const loanIdentifier = loanObjectId || loanId;
+      console.log("Using loan identifier:", loanIdentifier); // Debug log
+
       const endpoint =
         invoiceType === "billing"
-          ? `/invoice/loan/${loanObjectId}/pdf`
-          : `/invoice/repayment/${loanObjectId}/pdf`;
+          ? `/invoice/loan/${loanIdentifier}/pdf`
+          : `/invoice/repayment/${loanIdentifier}/pdf`;
+
+      console.log("PDF endpoint:", endpoint); // Debug log
 
       const response = await api.get(endpoint, {
         responseType: "blob",
@@ -79,10 +86,14 @@ export const InvoicePDFModal = ({
 
   const downloadPDF = async () => {
     try {
+      // Use loanObjectId if available, otherwise use loanId
+      const loanIdentifier = loanObjectId || loanId;
+      console.log("Downloading PDF with identifier:", loanIdentifier); // Debug log
+
       const endpoint =
         invoiceType === "billing"
-          ? `/invoice/loan/${loanObjectId}/pdf`
-          : `/invoice/repayment/${loanObjectId}/pdf`;
+          ? `/invoice/loan/${loanIdentifier}/pdf`
+          : `/invoice/repayment/${loanIdentifier}/pdf`;
 
       const response = await api.get(endpoint, {
         responseType: "blob",
@@ -95,7 +106,8 @@ export const InvoicePDFModal = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${invoiceType}_invoice_${loanId}.pdf`;
+      const prefix = invoiceType === "billing" ? "B" : "R";
+      link.download = `${prefix}-${loanId}.pdf`;
 
       document.body.appendChild(link);
       link.click();
@@ -242,16 +254,34 @@ export const InvoicePDFModal = ({
               <div className="text-center">
                 <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  Failed to Load Invoice
+                  Failed to Load Invoice Preview
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-                <button
-                  onClick={loadPDF}
-                  className="px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
-                  style={{ backgroundColor: colors.primary.dark }}
-                >
-                  Retry
-                </button>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  PDF preview is not available, but you can still download the
+                  invoice.
+                </p>
+                <div className="flex space-x-3 justify-center">
+                  <button
+                    onClick={downloadPDF}
+                    className="flex items-center space-x-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
+                    style={{ backgroundColor: colors.primary.dark }}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Download Invoice</span>
+                  </button>
+                  <button
+                    onClick={loadPDF}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Retry Preview
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}

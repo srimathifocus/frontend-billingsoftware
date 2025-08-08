@@ -1,8 +1,17 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-// const API_BASE_URL = "http://localhost:5000/api"; // Local development
-const API_BASE_URL = "https://backend-billingsoftware.onrender.com/api"; // Production backend URL
+// Environment-based API URL configuration
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:5000/api" // Local development fallback
+    : "https://backend-billingsoftware.onrender.com/api"); // Production backend URL fallback
+
+// Debug logging
+console.log("Environment:", import.meta.env.DEV ? "development" : "production");
+console.log("API Base URL:", API_BASE_URL);
+
 // Application configured for real-time data only
 export const MOCK_MODE = false;
 
@@ -87,6 +96,26 @@ export const retryRequest = async (
       // Wait before retrying (exponential backoff)
       await new Promise((resolve) => setTimeout(resolve, 1000 * retries));
     }
+  }
+};
+
+// Shop Details API
+export const fetchShopDetails = async () => {
+  try {
+    const response = await api.get("/shop-details");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching shop details:", error);
+    // Return default shop details as fallback
+    return {
+      shopName: "GOLDEN JEWELLERY",
+      location: "Salem, Tamil Nadu",
+      address: "123 Main Street, Jewelry District, City - 500001",
+      phone: "+91 9876543210",
+      email: "info@goldenjewellery.com",
+      gstNumber: "29ABCDE1234F1Z5",
+      licenseNumber: "JWL/2024/001",
+    };
   }
 };
 

@@ -8,7 +8,6 @@ import {
   DollarSign,
   Building,
   Users,
-  Printer,
   Edit,
   Save,
   X,
@@ -154,18 +153,7 @@ export const BalanceSheetPage = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const printAuditReport = async () => {
-    try {
-      // This would generate a PDF report - implement based on your PDF generation logic
-      console.log(
-        "Printing audit report for",
-        monthNames[selectedMonth - 1],
-        selectedYear
-      );
-    } catch (error) {
-      console.error("Error printing audit report:", error);
-    }
-  };
+  // Print functionality removed - download only
 
   if (balanceSheetsLoading) {
     return (
@@ -188,13 +176,7 @@ export const BalanceSheetPage = () => {
             </p>
           </div>
           <div className="flex space-x-2">
-            <button
-              onClick={printAuditReport}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Printer className="h-4 w-4" />
-              <span>Print Report</span>
-            </button>
+            {/* Print functionality removed */}
             {!isEditing ? (
               <button
                 onClick={handleEdit}

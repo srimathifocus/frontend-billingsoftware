@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   User,
@@ -15,13 +16,18 @@ import {
   Printer,
   CheckCircle,
   ArrowLeft,
-  ShoppingCart,
   X,
+  AlertCircle,
+  Info,
+  CheckCircle2,
+  AlertTriangle,
+  Download,
 } from "lucide-react";
 import api from "../utils/api";
 import { BillingCreateRequest } from "../types";
 import { colors, themeConfig } from "../theme/colors";
-import { CompactInvoiceModal } from "../components/CompactInvoiceModal";
+import { InvoiceViewButtons } from "../components/InvoiceViewButtons";
+
 import { SearchableDistrictDropdown } from "../components/SearchableDistrictDropdown";
 
 const createBilling = async (data: BillingCreateRequest) => {
@@ -34,28 +40,15 @@ const fetchMasterItems = async () => {
   return response.data;
 };
 
-interface CartItem {
-  id: string;
-  code: string;
-  name: string;
-  category: string;
-  carat: string;
-  weight: number;
-  estimatedValue: number;
-}
-
 export const CreateBillingPage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedMasterItems, setSelectedMasterItems] = useState<{
     [key: number]: any;
   }>({});
-  const [billingSuccess, setBillingSuccess] = useState<{
-    loanId: string;
-    loanObjectId: string;
-  } | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [showCart, setShowCart] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdLoanData, setCreatedLoanData] = useState<any>(null);
 
   // Fetch master items for dropdowns
   const {
@@ -74,6 +67,9 @@ export const CreateBillingPage = () => {
     formState: { errors },
     watch,
     setValue,
+    trigger,
+    clearErrors,
+    reset,
   } = useForm<BillingCreateRequest>({
     defaultValues: {
       customer: {
@@ -94,19 +90,19 @@ export const CreateBillingPage = () => {
           name: "",
           category: "",
           carat: "",
-          weight: 0,
-          estimatedValue: 0,
+          weight: "",
+          estimatedValue: "",
         },
       ],
       loan: {
-        amount: 0,
+        amount: "",
         interestType: "monthly",
         interestPercent: 2.5,
         validity: "6",
       },
       payment: {
-        cash: 0,
-        online: 0,
+        cash: "",
+        online: "",
       },
     },
   });
@@ -116,16 +112,74 @@ export const CreateBillingPage = () => {
     name: "items",
   });
 
+  // Direct download function - using loanObjectId for API, loanId for filename
+  const downloadInvoice = async (
+    loanObjectId: string,
+    loanId: string,
+    type: "billing" | "repayment"
+  ) => {
+    try {
+      const endpoint =
+        type === "billing"
+          ? `/invoice/loan/${loanObjectId}/pdf`
+          : `/invoice/repayment/${loanObjectId}/pdf`;
+
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+        headers: {
+          Accept: "application/pdf",
+        },
+      });
+
+      const blob = new Blob([response.data], {
+        type: "application/pdf",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const prefix = type === "billing" ? "B" : "R";
+      link.download = `${prefix}-${loanId}.pdf`;
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success(`${type} invoice downloaded successfully!`);
+    } catch (error: any) {
+      console.error(`Error downloading ${type} invoice:`, error);
+      toast.error(`Failed to download ${type} invoice. Please try again.`);
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: createBilling,
-    onSuccess: (data) => {
-      toast.success("Billing created successfully!");
+    onSuccess: (response, variables) => {
+      // Show success toast
+      toast.success("Billing created successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+
+      // Set created loan data and show success modal
+      setCreatedLoanData({
+        loanId: response.data.loanId,
+        loanObjectId: response.data.loanObjectId,
+        customerName: variables.customer.name,
+      });
+      setShowSuccessModal(true);
+
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["active-loans"] });
       queryClient.invalidateQueries({ queryKey: ["billing-stats"] });
 
-      // Reset form or redirect
+      // Reset form
       setCurrentStep(1);
+      reset();
     },
     onError: (error: any) => {
       console.error("Billing creation error:", error);
@@ -136,16 +190,21 @@ export const CreateBillingPage = () => {
 
       // Show specific error messages based on error type
       if (errorType === "DUPLICATE_KEY_ERROR") {
-        toast.error(`${errorMessage}. Please use different item codes.`);
+        toast.error(
+          "Duplicate Item Error",
+          `${errorMessage}. Please use different item codes.`
+        );
       } else if (errorType === "VALIDATION_ERROR") {
         const errors = error.response?.data?.errors;
         if (errors && errors.length > 0) {
-          errors.forEach((err: string) => toast.error(err));
+          errors.forEach((err: string) =>
+            toast.error("Validation Failed", err)
+          );
         } else {
-          toast.error(errorMessage);
+          toast.error("Validation Error", errorMessage);
         }
       } else {
-        toast.error(errorMessage);
+        toast.error("Creation Failed", errorMessage);
       }
     },
   });
@@ -163,54 +222,112 @@ export const CreateBillingPage = () => {
     mutation.mutate(processedData);
   };
 
+  // Step validation functions
+  const validateStep1 = async () => {
+    const result = await trigger([
+      "customer.name",
+      "customer.phone",
+      "customer.address.doorNo",
+      "customer.address.street",
+      "customer.address.town",
+      "customer.address.district",
+      "customer.address.pincode",
+      "customer.nominee",
+    ]);
+    return result;
+  };
+
+  const validateStep2 = async () => {
+    const items = watch("items");
+
+    // Check if at least one item exists
+    if (!items || items.length === 0) {
+      toast.warning(
+        "No Items Added",
+        "At least one item is required to proceed to the next step."
+      );
+      return false;
+    }
+
+    const result = await trigger("items");
+    return result;
+  };
+
+  const handleNextStep = async () => {
+    let isValid = false;
+
+    if (currentStep === 1) {
+      isValid = await validateStep1();
+      if (!isValid) {
+        toast.error(
+          "Step 1 Incomplete",
+          "Please complete all required customer information fields before proceeding."
+        );
+        // Scroll to top to show error fields
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+    } else if (currentStep === 2) {
+      isValid = await validateStep2();
+      if (!isValid) {
+        toast.error(
+          "Step 2 Incomplete",
+          "Please complete all required item information fields before proceeding."
+        );
+        // Scroll to top to show error fields
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+    }
+
+    if (isValid) {
+      setCurrentStep(currentStep + 1);
+
+      // Clear errors for the step we're moving to
+      if (currentStep === 1) {
+        // Moving to step 2, clear item errors
+        clearErrors("items");
+      } else if (currentStep === 2) {
+        // Moving to step 3, clear loan and payment errors
+        clearErrors(["loan", "payment"]);
+      }
+
+      // Scroll to top when moving to next step
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handlePrevStep = () => {
+    const prevStep = Math.max(1, currentStep - 1);
+    setCurrentStep(prevStep);
+
+    // Clear errors for the step we're moving to
+    if (prevStep === 1) {
+      // Moving to step 1, clear customer errors
+      clearErrors("customer");
+    } else if (prevStep === 2) {
+      // Moving to step 2, clear item errors
+      clearErrors("items");
+    }
+
+    // Scroll to top when moving to previous step
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const watchedLoanAmount = watch("loan.amount");
   const watchedPayment = watch("payment");
+  const watchedItems = watch("items");
+
+  // Calculate total estimated value from all items
+  const totalEstimatedValue =
+    watchedItems?.reduce((sum: number, item: any) => {
+      const itemValue = Number(item?.estimatedValue || 0);
+      return sum + itemValue;
+    }, 0) || 0;
 
   const totalPayment =
     Number(watchedPayment.cash || 0) + Number(watchedPayment.online || 0);
   const paymentBalance = Number(watchedLoanAmount || 0) - totalPayment;
-
-  // Cart functionality
-  const addToCart = (item: Omit<CartItem, "id">) => {
-    const cartItem: CartItem = {
-      ...item,
-      id: `cart_${Date.now()}_${Math.random()}`,
-    };
-    setCart((prev) => [...prev, cartItem]);
-    toast.success("Item added to cart!");
-  };
-
-  const removeFromCart = (itemId: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== itemId));
-    toast.success("Item removed from cart!");
-  };
-
-  const addCartItemsToForm = () => {
-    // Clear existing items
-    while (fields.length > 0) {
-      remove(0);
-    }
-
-    // Add cart items to form
-    cart.forEach((cartItem) => {
-      append({
-        code: cartItem.code,
-        name: cartItem.name,
-        category: cartItem.category,
-        carat: cartItem.carat,
-        weight: cartItem.weight,
-        estimatedValue: cartItem.estimatedValue,
-      });
-    });
-
-    setShowCart(false);
-    toast.success(`${cart.length} items added to billing form!`);
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    toast.success("Cart cleared!");
-  };
 
   // Handle master item selection
   const handleMasterItemSelect = (index: number, masterItemId: string) => {
@@ -242,25 +359,28 @@ export const CreateBillingPage = () => {
   };
 
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center gap-3 mb-4 sm:mb-6">
         <div
           className="p-2 rounded-lg"
           style={{ backgroundColor: colors.primary[100] }}
         >
-          <User className="h-6 w-6" style={{ color: colors.primary.dark }} />
+          <User
+            className="h-5 w-5 sm:h-6 sm:w-6"
+            style={{ color: colors.primary.dark }}
+          />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
             Customer Information
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Enter customer details
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Full Name *
@@ -497,28 +617,14 @@ export const CreateBillingPage = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowCart(true)}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors relative"
-            style={{ backgroundColor: colors.primary.light }}
-          >
-            <ShoppingCart className="h-4 w-4" />
-            Cart ({cart.length})
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {cart.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
             onClick={() =>
               append({
                 code: "",
                 name: "",
                 category: "",
                 carat: "",
-                weight: 0,
-                estimatedValue: 0,
+                weight: "",
+                estimatedValue: "",
               })
             }
             className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
@@ -802,42 +908,6 @@ export const CreateBillingPage = () => {
                 </p>
               )}
             </div>
-
-            {/* Add to Cart Button */}
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  const currentItem = watch(`items.${index}`);
-                  if (
-                    currentItem.code &&
-                    currentItem.name &&
-                    currentItem.category &&
-                    currentItem.carat &&
-                    currentItem.weight &&
-                    currentItem.estimatedValue
-                  ) {
-                    addToCart({
-                      code: currentItem.code,
-                      name: currentItem.name,
-                      category: currentItem.category,
-                      carat: currentItem.carat,
-                      weight: currentItem.weight,
-                      estimatedValue: currentItem.estimatedValue,
-                    });
-                  } else {
-                    toast.error(
-                      "Please fill all item fields before adding to cart"
-                    );
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
-                style={{ backgroundColor: colors.primary.light }}
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Add to Cart
-              </button>
-            </div>
           </div>
         ))}
       </div>
@@ -883,7 +953,11 @@ export const CreateBillingPage = () => {
             style={{
               ...(errors.loan?.amount && { borderColor: colors.primary.dark }),
             }}
-            placeholder="Enter loan amount"
+            placeholder={
+              totalEstimatedValue > 0
+                ? `₹${totalEstimatedValue.toLocaleString()} (Total Estimated Value)`
+                : "Enter loan amount"
+            }
           />
           {errors.loan?.amount && (
             <p className="text-sm mt-1" style={{ color: colors.primary.dark }}>
@@ -1001,7 +1075,7 @@ export const CreateBillingPage = () => {
                   borderColor: colors.primary.dark,
                 }),
               }}
-              placeholder="0"
+              placeholder="Enter cash amount"
             />
             {errors.payment?.cash && (
               <p
@@ -1030,7 +1104,7 @@ export const CreateBillingPage = () => {
                   borderColor: colors.primary.dark,
                 }),
               }}
-              placeholder="0"
+              placeholder="Enter online amount"
             />
             {errors.payment?.online && (
               <p
@@ -1100,87 +1174,94 @@ export const CreateBillingPage = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+    <div className="max-w-4xl mx-auto p-3 sm:p-6">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Create New Billing
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Fill in the details to create a new loan and billing record
         </p>
       </div>
 
       {/* Progress Steps */}
-      <div className="flex items-center justify-center mb-8">
-        {steps.map((step, index) => {
-          const StepIcon = step.icon;
-          const isActive = currentStep === step.number;
-          const isCompleted = currentStep > step.number;
+      <div className="flex items-center justify-center mb-6 sm:mb-8 overflow-x-auto">
+        <div className="flex items-center min-w-max px-2 sm:px-4">
+          {steps.map((step, index) => {
+            const StepIcon = step.icon;
+            const isActive = currentStep === step.number;
+            const isCompleted = currentStep > step.number;
 
-          return (
-            <div key={step.number} className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  isActive || isCompleted
-                    ? "border-transparent text-white"
-                    : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
-                }`}
-                style={{
-                  backgroundColor:
+            return (
+              <div key={step.number} className="flex items-center">
+                <div
+                  className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 transition-colors ${
                     isActive || isCompleted
-                      ? colors.primary.dark
-                      : "transparent",
-                }}
-              >
-                <StepIcon className="h-5 w-5" />
-              </div>
-              <div className="ml-3 mr-8">
-                <p
-                  className={`text-sm font-medium ${
-                    isActive || isCompleted
-                      ? "dark:text-white"
-                      : "text-gray-500 dark:text-gray-400"
+                      ? "border-transparent text-white"
+                      : "border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
                   }`}
                   style={{
-                    color:
-                      isActive || isCompleted ? colors.primary.dark : undefined,
+                    backgroundColor:
+                      isActive || isCompleted
+                        ? colors.primary.dark
+                        : "transparent",
                   }}
                 >
-                  {step.title}
-                </p>
+                  <StepIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </div>
+                <div className="ml-2 sm:ml-3 mr-4 sm:mr-8">
+                  <p
+                    className={`text-xs sm:text-sm font-medium ${
+                      isActive || isCompleted
+                        ? "dark:text-white"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                    style={{
+                      color:
+                        isActive || isCompleted
+                          ? colors.primary.dark
+                          : undefined,
+                    }}
+                  >
+                    {step.title}
+                  </p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={`flex-1 h-0.5 ${
+                      isCompleted ? "" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                    style={{
+                      backgroundColor: isCompleted
+                        ? colors.primary.dark
+                        : undefined,
+                    }}
+                  />
+                )}
               </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`flex-1 h-0.5 ${
-                    isCompleted ? "" : "bg-gray-300 dark:bg-gray-600"
-                  }`}
-                  style={{
-                    backgroundColor: isCompleted
-                      ? colors.primary.dark
-                      : undefined,
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-6 sm:space-y-8"
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0">
           <button
             type="button"
-            onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
+            onClick={handlePrevStep}
             disabled={currentStep === 1}
-            className="px-6 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 sm:px-6 py-2 text-sm sm:text-base text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1"
           >
             Previous
           </button>
@@ -1188,8 +1269,8 @@ export const CreateBillingPage = () => {
           {currentStep < 3 ? (
             <button
               type="button"
-              onClick={() => setCurrentStep(currentStep + 1)}
-              className="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
+              onClick={handleNextStep}
+              className="px-4 sm:px-6 py-2 text-sm sm:text-base text-white rounded-lg hover:opacity-90 transition-colors order-1 sm:order-2"
               style={{ backgroundColor: colors.primary.dark }}
             >
               Next
@@ -1198,7 +1279,7 @@ export const CreateBillingPage = () => {
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="flex items-center gap-2 px-6 py-2 text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 text-sm sm:text-base text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
               style={{ backgroundColor: colors.primary.dark }}
             >
               <Save className="h-4 w-4" />
@@ -1208,161 +1289,55 @@ export const CreateBillingPage = () => {
         </div>
       </form>
 
-      {/* Cart Modal */}
-      {showCart && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Shopping Cart ({cart.length} items)
-              </h3>
-              <button
-                onClick={() => setShowCart(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            {cart.length === 0 ? (
-              <div className="text-center py-8">
-                <ShoppingCart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">
-                  Your cart is empty
-                </p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                  Add items from the form above to see them here
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-4 mb-6">
-                  {cart.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <h4 className="font-medium text-gray-900 dark:text-white">
-                              {item.name}
-                            </h4>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Code: {item.code}
-                            </p>
-                          </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-300">
-                            <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded mr-2">
-                              {item.category}
-                            </span>
-                            <span className="inline-block bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded mr-2">
-                              {item.carat}
-                            </span>
-                            <span className="inline-block bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-1 rounded">
-                              {item.weight}g
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-gray-900 dark:text-white">
-                              ₹{item.estimatedValue.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="ml-4 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t dark:border-gray-600 pt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Total Value: ₹
-                      {cart
-                        .reduce((sum, item) => sum + item.estimatedValue, 0)
-                        .toLocaleString()}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {cart.length} item{cart.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={addCartItemsToForm}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
-                      style={{ backgroundColor: colors.primary.dark }}
-                    >
-                      <Package className="h-4 w-4" />
-                      Add All to Billing Form
-                    </button>
-                    <button
-                      onClick={clearCart}
-                      className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      Clear Cart
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Success Modal with Print Option */}
-      {billingSuccess && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full shadow-xl">
-            <div className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-full">
-                  <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                Billing Created Successfully!
-              </h3>
-
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Loan ID: {billingSuccess.loanId}
-              </p>
-
-              <div className="flex flex-col gap-3">
-                <CompactInvoiceModal
-                  isOpen={true}
-                  onClose={() => setBillingSuccess(null)}
-                  loanId={billingSuccess.loanId}
-                  loanObjectId={billingSuccess.loanObjectId}
-                  type="billing"
-                  invoiceData={{
-                    customerName: watch("customer.name"),
-                    customerPhone: watch("customer.phone"),
-                    loanAmount: watch("loan.amount"),
-                    totalAmount: watch("loan.amount"),
-                    repaymentDate: new Date().toISOString(),
-                    items: watch("items") || [],
-                  }}
-                />
-
+      {/* Success Modal */}
+      {showSuccessModal && createdLoanData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              {/* Success Message with Close Button */}
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 relative">
+                {/* Close Button */}
                 <button
                   onClick={() => {
-                    setBillingSuccess(null);
-                    setCurrentStep(1);
-                    // Reset form for new billing
-                    window.location.reload();
+                    setShowSuccessModal(false);
+                    setCreatedLoanData(null);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors justify-center"
+                  className="absolute top-3 right-3 p-1 hover:bg-green-100 dark:hover:bg-green-800 rounded-full transition-colors"
+                  title="Close"
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                  Create New Billing
+                  <X className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </button>
+
+                <div className="flex items-center gap-3 pr-8">
+                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <div>
+                    <h3 className="font-semibold text-green-800 dark:text-green-200">
+                      Billing Created Successfully!
+                    </h3>
+                    <p className="text-sm text-green-600 dark:text-green-300">
+                      Loan {createdLoanData.loanId} for{" "}
+                      {createdLoanData.customerName} has been created. Download
+                      your invoice below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Download Button */}
+              <div className="mt-4">
+                <button
+                  onClick={() =>
+                    downloadInvoice(
+                      createdLoanData.loanObjectId,
+                      createdLoanData.loanId,
+                      "billing"
+                    )
+                  }
+                  className="flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg hover:opacity-90 transition-colors w-full"
+                  style={{ backgroundColor: colors.primary.dark }}
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download Billing Invoice</span>
                 </button>
               </div>
             </div>

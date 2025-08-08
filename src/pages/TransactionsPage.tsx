@@ -144,11 +144,6 @@ export const TransactionsPage = () => {
     ? groupTransactions(transactions)
     : [];
 
-  const exportTransactions = () => {
-    // Implementation for exporting transactions
-    console.log("Exporting transactions...");
-  };
-
   const toggleExpand = (transactionId: string) => {
     const newExpanded = new Set(expandedTransactions);
     if (newExpanded.has(transactionId)) {
@@ -222,15 +217,6 @@ export const TransactionsPage = () => {
             grouped records, {transactions?.length || 0} total) -
             {/* Auto-refreshing every 15 seconds */}
           </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={exportTransactions}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </button>
         </div>
       </div>
 

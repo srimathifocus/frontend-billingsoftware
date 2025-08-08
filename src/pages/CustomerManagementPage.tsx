@@ -21,10 +21,11 @@ import {
   Trash2,
   History,
   Shield,
+  Download,
 } from "lucide-react";
 import api from "../utils/api";
-import { InvoiceModal } from "../components/InvoiceModal";
 import { InvoiceViewButtons } from "../components/InvoiceViewButtons";
+import { InvoiceModal } from "../components/InvoiceModal";
 import { CustomerEditModal } from "../components/CustomerEditModal";
 import { CustomerDeleteModal } from "../components/CustomerDeleteModal";
 import { CustomerEditHistoryModal } from "../components/CustomerEditHistoryModal";
@@ -79,108 +80,7 @@ const fetchCustomerInvoices = async (
   return response.data.data;
 };
 
-const downloadInvoice = async (
-  loanId: string,
-  type: "billing" | "repayment"
-) => {
-  try {
-    const endpoint =
-      type === "billing"
-        ? `/invoice/loan/${loanId}/pdf`
-        : `/invoice/repayment/${loanId}/pdf`;
-
-    console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
-
-    const response = await api.get(endpoint, {
-      responseType: "blob",
-      headers: {
-        Accept: "application/pdf",
-      },
-    });
-
-    // Check if response is actually a PDF
-    if (response.data.type !== "application/pdf") {
-      console.error("Response is not a PDF:", response.data.type);
-      toast.error("Invalid PDF response from server");
-      return;
-    }
-
-    // Check response size - if too small, might be empty/error
-    if (response.data.size < 1000) {
-      console.warn("PDF response size is very small:", response.data.size);
-    }
-
-    const blob = new Blob([response.data], {
-      type: "application/pdf",
-    });
-
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${type}_invoice_${loanId}.pdf`;
-
-    // Ensure link is added to DOM before clicking
-    document.body.appendChild(link);
-    link.click();
-
-    // Clean up immediately after download
-    setTimeout(() => {
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    }, 100);
-
-    console.log(`${type} invoice downloaded successfully`);
-  } catch (error) {
-    console.error("Error downloading invoice:", error);
-
-    // More specific error handling
-    if (error.response) {
-      console.error("Response status:", error.response.status);
-      console.error("Response data:", error.response.data);
-
-      if (error.response.status === 404) {
-        toast.error(`${type} invoice not found`);
-      } else if (error.response.status === 500) {
-        toast.error("Server error while generating PDF");
-      } else {
-        toast.error(`Failed to download ${type} invoice`);
-      }
-    } else {
-      toast.error("Network error while downloading PDF");
-    }
-  }
-};
-
-// Updated print function with better error handling
-const printInvoice = (loanId: string, type: "billing" | "repayment") => {
-  try {
-    const printUrl = `${api.defaults.baseURL}/invoice/${type}/${loanId}/print`;
-    console.log(`Opening print window for ${type} invoice:`, printUrl);
-
-    const printWindow = window.open(printUrl, "_blank", "width=800,height=600");
-
-    if (!printWindow) {
-      toast.error("Pop-up blocked. Please allow pop-ups and try again.");
-      return;
-    }
-
-    printWindow.onload = () => {
-      // Small delay to ensure content is fully loaded
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    };
-
-    // Handle cases where window fails to load
-    printWindow.onerror = (error) => {
-      console.error("Print window error:", error);
-      toast.error("Failed to load print preview");
-    };
-  } catch (error) {
-    console.error("Error opening print window:", error);
-    toast.error("Failed to open print preview");
-  }
-};
+// Print functionality removed - only download available
 
 export const CustomerManagementPage = () => {
   const queryClient = useQueryClient();
@@ -218,6 +118,67 @@ export const CustomerManagementPage = () => {
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Direct download function
+  const downloadInvoice = async (
+    loanId: string,
+    type: "billing" | "repayment",
+    customerName: string
+  ) => {
+    try {
+      const endpoint =
+        type === "billing"
+          ? `/invoice/loan/${loanId}/pdf`
+          : `/invoice/repayment/${loanId}/pdf`;
+
+      console.log(`Downloading ${type} invoice for loanId: ${loanId}`);
+      toast.info(`Preparing ${type} invoice for download...`);
+
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+        headers: {
+          Accept: "application/pdf",
+        },
+      });
+
+      // Check if response is actually a PDF
+      if (response.data.type !== "application/pdf") {
+        console.error("Response is not a PDF:", response.data.type);
+        toast.error("Invalid PDF response from server");
+        return;
+      }
+
+      const blob = new Blob([response.data], {
+        type: "application/pdf",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const prefix = type === "billing" ? "B" : "R";
+      link.download = `${prefix}-${loanId}.pdf`;
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success(`${type} invoice downloaded successfully!`);
+    } catch (error: any) {
+      console.error(`Error downloading ${type} invoice:`, error);
+
+      if (error.response?.status === 404) {
+        toast.error(`${type} invoice not found for this loan`);
+      } else if (error.response?.status === 401) {
+        toast.error("Authentication failed. Please login again.");
+      } else {
+        toast.error(`Failed to download ${type} invoice. Please try again.`);
+      }
+    }
+  };
 
   const {
     data: customers,
@@ -502,13 +463,13 @@ export const CustomerManagementPage = () => {
             >
               {/* Customer Header */}
               <div
-                className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="p-4 sm:p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => handleCustomerExpand(customer._id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                  <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
                     <div
-                      className="p-2 rounded-lg"
+                      className="p-2 rounded-lg flex-shrink-0"
                       style={{ backgroundColor: colors.primary.light + "20" }}
                     >
                       <User
@@ -516,30 +477,32 @@ export const CustomerManagementPage = () => {
                         style={{ color: colors.primary.dark }}
                       />
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
                           {customer.name}
                         </h3>
                         {/* Status Badge */}
                         <div
-                          className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.bg} ${statusInfo.text}`}
+                          className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.bg} ${statusInfo.text} w-fit`}
                         >
                           <StatusIcon className="h-3 w-3" />
                           <span>{statusInfo.label}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-sm text-gray-600 dark:text-gray-400 mt-2">
                         <div className="flex items-center space-x-1">
-                          <Phone className="h-4 w-4" />
+                          <Phone className="h-4 w-4 flex-shrink-0" />
                           <span>{customer.phone}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <MapPin className="h-4 w-4" />
-                          <span>{formatAddress(customer.address)}</span>
+                          <MapPin className="h-4 w-4 flex-shrink-0" />
+                          <span className="line-clamp-1">
+                            {formatAddress(customer.address)}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
+                          <Calendar className="h-4 w-4 flex-shrink-0" />
                           <span>
                             Added:{" "}
                             {new Date(customer.createdAt).toLocaleDateString()}
@@ -549,10 +512,10 @@ export const CustomerManagementPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto">
                     {/* Admin-only action buttons */}
                     {isAdmin && (
-                      <div className="flex items-center space-x-1 mr-4">
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -561,7 +524,7 @@ export const CustomerManagementPage = () => {
                           className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                           title="Edit Customer"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -571,7 +534,7 @@ export const CustomerManagementPage = () => {
                           className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                           title="View Edit History"
                         >
-                          <History className="h-4 w-4" />
+                          <History className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -581,14 +544,14 @@ export const CustomerManagementPage = () => {
                           className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           title="Delete Customer"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
                       </div>
                     )}
 
                     {/* Role indicator */}
                     {!isAdmin && (
-                      <div className="flex items-center space-x-1 mr-4 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                      <div className="flex items-center space-x-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
                         <Shield className="h-3 w-3 text-gray-500" />
                         <span className="text-xs text-gray-500">
                           Manager View
@@ -607,7 +570,7 @@ export const CustomerManagementPage = () => {
 
               {/* Expanded Content - Invoices */}
               {expandedCustomer === customer._id && (
-                <div className="border-t border-gray-200 dark:border-gray-700 p-6">
+                <div className="border-t border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Loan Invoices
                   </h4>
@@ -617,14 +580,14 @@ export const CustomerManagementPage = () => {
                       {customerInvoices[customer._id].map((invoice) => (
                         <div
                           key={invoice.loanId}
-                          className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-4 ${getCustomerCardBorder(
+                          className={`bg-gray-50 dark:bg-gray-700 rounded-lg p-3 sm:p-4 ${getCustomerCardBorder(
                             invoice.status
                           )}`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                            <div className="flex items-start space-x-3">
                               <div
-                                className="p-2 rounded-lg"
+                                className="p-2 rounded-lg flex-shrink-0"
                                 style={{
                                   backgroundColor: colors.primary.medium + "20",
                                 }}
@@ -634,13 +597,13 @@ export const CustomerManagementPage = () => {
                                   style={{ color: colors.primary.medium }}
                                 />
                               </div>
-                              <div>
-                                <div className="font-medium text-gray-900 dark:text-white">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 dark:text-white mb-2">
                                   Loan ID: {invoice.loanId}
                                 </div>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                                <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-sm text-gray-600 dark:text-gray-400">
                                   <div className="flex items-center space-x-1">
-                                    <Calendar className="h-4 w-4" />
+                                    <Calendar className="h-4 w-4 flex-shrink-0" />
                                     <span>
                                       {new Date(
                                         invoice.loanDate
@@ -648,7 +611,7 @@ export const CustomerManagementPage = () => {
                                     </span>
                                   </div>
                                   <div className="flex items-center space-x-1">
-                                    <IndianRupee className="h-4 w-4" />
+                                    <IndianRupee className="h-4 w-4 flex-shrink-0" />
                                     <span>
                                       ₹{invoice.loanAmount.toLocaleString()}
                                     </span>
@@ -692,18 +655,45 @@ export const CustomerManagementPage = () => {
                               </div>
                             </div>
 
-                            <div className="flex space-x-2">
-                              <InvoiceViewButtons
-                                loanObjectId={invoice.loanObjectId}
-                                loanId={invoice.loanId}
-                                customerName={invoice.customerName}
-                                billingAvailable={
-                                  invoice.billingInvoiceAvailable
-                                }
-                                repaymentAvailable={
-                                  invoice.repaymentInvoiceAvailable
-                                }
-                              />
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                              {invoice.billingInvoiceAvailable && (
+                                <button
+                                  onClick={() =>
+                                    downloadInvoice(
+                                      invoice.loanObjectId,
+                                      "billing",
+                                      invoice.customerName
+                                    )
+                                  }
+                                  className="flex items-center justify-center space-x-1 px-3 py-2 text-white text-sm rounded-lg hover:opacity-90 transition-colors"
+                                  style={{
+                                    backgroundColor: colors.primary.dark,
+                                  }}
+                                  title="Download Billing Invoice PDF"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span>Billing</span>
+                                </button>
+                              )}
+                              {invoice.repaymentInvoiceAvailable && (
+                                <button
+                                  onClick={() =>
+                                    downloadInvoice(
+                                      invoice.loanObjectId,
+                                      "repayment",
+                                      invoice.customerName
+                                    )
+                                  }
+                                  className="flex items-center justify-center space-x-1 px-3 py-2 text-white text-sm rounded-lg hover:opacity-90 transition-colors"
+                                  style={{
+                                    backgroundColor: colors.primary.medium,
+                                  }}
+                                  title="Download Repayment Invoice PDF"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span>Repayment</span>
+                                </button>
+                              )}
                             </div>
                           </div>
 

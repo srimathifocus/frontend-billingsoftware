@@ -421,19 +421,7 @@ export const ModernFinanceManagementPage = () => {
               Balance Sheet ({balanceSheets.length})
             </div>
           </button>
-          <button
-            onClick={() => setActiveTab("revenue")}
-            className={`px-6 py-4 font-medium text-sm ${
-              activeTab === "revenue"
-                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Revenue
-            </div>
-          </button>
+
           <button
             onClick={() => setActiveTab("reports")}
             className={`px-6 py-4 font-medium text-sm ${
@@ -973,18 +961,6 @@ export const ModernFinanceManagementPage = () => {
                 </div>
               )}
             </>
-          )}
-
-          {activeTab === "revenue" && (
-            <div className="text-center py-12">
-              <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                Revenue Management
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Revenue tracking and management features coming soon
-              </p>
-            </div>
           )}
 
           {activeTab === "reports" && (

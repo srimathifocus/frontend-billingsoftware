@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X,
   Download,
@@ -14,7 +14,9 @@ import {
   Printer,
 } from "lucide-react";
 import { JewelryInvoice } from "./JewelryInvoice";
+import { PDFViewer } from "./PDFViewer";
 import { colors } from "../theme/colors";
+import { fetchShopDetails } from "../utils/api";
 
 interface InvoiceModalProps {
   isOpen: boolean;
@@ -65,7 +67,8 @@ const downloadInvoice = async (
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${type}_invoice_${loanId}.pdf`;
+    const prefix = type === "billing" ? "B" : "R";
+    link.download = `${prefix}-${loanId}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -84,7 +87,50 @@ export const InvoiceModal = ({
   invoiceData,
 }: InvoiceModalProps) => {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [shopDetails, setShopDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
+
+  // Generate PDF URL for preview
+  const generatePdfUrl = (invoiceType: "billing" | "repayment") => {
+    const endpoint =
+      invoiceType === "billing"
+        ? `/invoice/loan/${loanObjectId}/pdf`
+        : `/invoice/repayment/${loanObjectId}/pdf`;
+    const token = sessionStorage.getItem("admin_token");
+    return `http://localhost:5000/api${endpoint}?token=${token}&timestamp=${Date.now()}`;
+  };
+
+  // Fetch shop details and load PDF on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setPdfLoading(true);
+
+        // Load shop details
+        const details = await fetchShopDetails();
+        setShopDetails(details);
+
+        // Generate PDF URL for preview
+        const invoiceType = type === "success" ? "repayment" : "billing";
+        const url = generatePdfUrl(invoiceType);
+        setPdfUrl(url);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        // Fallback shop details will be used from the API function
+      } finally {
+        setLoading(false);
+        setPdfLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      loadData();
+    }
+  }, [isOpen, loanObjectId, type]);
 
   if (!isOpen) return null;
 
@@ -95,89 +141,16 @@ export const InvoiceModal = ({
   };
 
   const handlePrint = () => {
-    if (invoiceRef.current) {
-      const printWindow = window.open("", "_blank");
+    if (pdfUrl) {
+      // Open the PDF in a new window and trigger print
+      const printWindow = window.open(pdfUrl, "_blank");
       if (printWindow) {
-        const invoiceContent = invoiceRef.current.innerHTML;
-
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Invoice - ${loanId}</title>
-              <style>
-                * {
-                  margin: 0;
-                  padding: 0;
-                  box-sizing: border-box;
-                }
-                
-                body {
-                  font-family: monospace;
-                  font-size: 7px;
-                  line-height: 1.0;
-                  color: black;
-                  background: white;
-                  margin: 0;
-                  padding: 0;
-                }
-                
-                .invoice-container {
-                  width: 10cm;
-                  height: auto;
-                  margin: 0 auto;
-                  background: white;
-                  border: 1px solid #ccc;
-                  padding: 12px;
-                  box-sizing: border-box;
-                }
-                
-                @media print {
-                  body {
-                    margin: 0;
-                    padding: 0;
-                  }
-                  
-                  .invoice-container {
-                    width: 10cm;
-                    height: auto;
-                    margin: 0;
-                    border: none;
-                    padding: 8px;
-                    page-break-inside: avoid;
-                    box-sizing: border-box;
-                  }
-                  
-                  @page {
-                    size: A4;
-                    margin: 0.5cm;
-                  }
-                  
-                  * {
-                    -webkit-print-color-adjust: exact !important;
-                    color-adjust: exact !important;
-                  }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="invoice-container">
-                ${invoiceContent}
-              </div>
-              <script>
-                window.onload = function() {
-                  window.print();
-                  window.onafterprint = function() {
-                    window.close();
-                  };
-                };
-              </script>
-            </body>
-          </html>
-        `);
-
-        printWindow.document.close();
+        printWindow.onload = () => {
+          printWindow.print();
+        };
       }
+    } else {
+      alert("PDF is still loading. Please wait and try again.");
     }
   };
 
@@ -205,10 +178,14 @@ export const InvoiceModal = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {type === "success" ? "Payment Successful!" : "Invoice Details"}
+                {type === "success"
+                  ? "Payment Successful!"
+                  : "🎉 Billing Created Successfully!"}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Loan ID: {loanId}
+                Loan ID:{" "}
+                <span className="font-bold text-blue-600">{loanId}</span> |
+                Professional invoice ready for download and print
               </p>
             </div>
           </div>
@@ -222,6 +199,81 @@ export const InvoiceModal = ({
 
         {/* Content */}
         <div className="p-6">
+          {/* Action Buttons Section */}
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 dark:from-gray-700 dark:to-gray-800 rounded-xl p-6 border border-blue-200 dark:border-gray-600">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">
+              📋 Invoice Actions Available
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* View Invoice */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="text-center">
+                  <div className="mb-2">
+                    <FileText className="h-8 w-8 mx-auto text-blue-600" />
+                  </div>
+                  <h4 className="font-bold text-gray-900 dark:text-white mb-2">
+                    👁️ View Invoice
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Same PDF content as download
+                  </p>
+                  <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                    ✅ PDF preview below
+                  </div>
+                </div>
+              </div>
+
+              {/* Print Invoice */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="text-center">
+                  <div className="mb-2">
+                    <Printer className="h-8 w-8 mx-auto text-green-600" />
+                  </div>
+                  <h4 className="font-bold text-gray-900 dark:text-white mb-2">
+                    🖨️ Print Invoice
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Same PDF format as download
+                  </p>
+                  <button
+                    onClick={handlePrint}
+                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm w-full"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>Print Now</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Download Invoice */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="text-center">
+                  <div className="mb-2">
+                    <Download className="h-8 w-8 mx-auto text-purple-600" />
+                  </div>
+                  <h4 className="font-bold text-gray-900 dark:text-white mb-2">
+                    💾 Download PDF
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Professional PDF invoice
+                  </p>
+                  <button
+                    onClick={() => handleDownload("billing")}
+                    disabled={downloading === "billing"}
+                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm w-full"
+                  >
+                    {downloading === "billing" ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    <span>Download PDF</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {type === "success" && (
             <div
               className="rounded-lg p-4 mb-6"
@@ -246,76 +298,50 @@ export const InvoiceModal = ({
             </div>
           )}
 
-          {/* Professional Invoice Preview */}
-          {invoiceData && (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white text-center flex-1">
-                  Professional Invoice Preview
-                </h3>
-                <button
-                  onClick={handlePrint}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-                  title="Print Invoice"
-                >
-                  <Printer className="h-4 w-4" />
-                  <span>Print</span>
-                </button>
-              </div>
-              <div className="flex justify-center">
-                <div className="border-2 border-gray-300 dark:border-gray-600 shadow-lg rounded-lg overflow-hidden">
-                  <JewelryInvoice
-                    ref={invoiceRef}
-                    invoiceData={{
-                      invoiceId: loanId,
-                      date: new Date().toISOString(),
-                      customerName: invoiceData.customerName,
-                      customerPhone: invoiceData.customerPhone,
-                      customerAddress: "", // Add if available
-                      loanAmount: invoiceData.loanAmount,
-                      interestRate: 2.5, // Default or get from data
-                      validity: 12, // Default or get from data
-                      dueDate:
-                        invoiceData.repaymentDate || new Date().toISOString(),
-                      items: invoiceData.items.map((item) => ({
-                        name: item.name,
-                        category: item.category,
-                        carat: "22K", // Default or get from data
-                        weight: item.weight,
-                        estimatedValue: item.estimatedValue,
-                      })),
-                      payment: invoiceData.payment || {
-                        cash: Math.floor(invoiceData.loanAmount * 0.6), // Example split
-                        online: Math.floor(invoiceData.loanAmount * 0.4),
-                      },
-                      type: type === "success" ? "repayment" : "loan",
-                      repaymentDate: invoiceData.repaymentDate,
-                      interestAmount: invoiceData.totalAmount
-                        ? invoiceData.totalAmount - invoiceData.loanAmount
-                        : 0,
-                      totalAmount: invoiceData.totalAmount,
-                      daysDifference: invoiceData.repaymentDate
-                        ? Math.floor(
-                            (new Date(invoiceData.repaymentDate).getTime() -
-                              new Date().getTime()) /
-                              (1000 * 60 * 60 * 24)
-                          )
-                        : 0,
-                    }}
-                    shopDetails={{
-                      name: "GOLDEN JEWELLERY",
-                      address:
-                        "123 Main Street, Jewelry District, City - 500001",
-                      phone: "+91 9876543210",
-                      email: "info@goldenjewellery.com",
-                      gstNo: "29ABCDE1234F1Z5",
-                      licenseNo: "JWL/2024/001",
+          {/* Professional PDF Invoice Preview */}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white text-center flex-1">
+                Professional PDF Invoice Preview
+              </h3>
+              <button
+                onClick={handlePrint}
+                disabled={!pdfUrl || pdfLoading}
+                className="flex items-center space-x-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Print Invoice"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Print</span>
+              </button>
+            </div>
+            <div className="flex justify-center">
+              <div className="border-2 border-gray-300 dark:border-gray-600 shadow-lg rounded-lg overflow-hidden bg-white">
+                {pdfUrl ? (
+                  <PDFViewer
+                    pdfUrl={pdfUrl}
+                    width={500}
+                    height={700}
+                    scale={0.8}
+                    onLoadError={(error) => {
+                      console.error("PDF load error:", error);
                     }}
                   />
-                </div>
+                ) : (
+                  <div
+                    className="flex items-center justify-center"
+                    style={{ width: 500, height: 700 }}
+                  >
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Loading PDF preview...
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Customer & Loan Info */}
           {invoiceData && (
@@ -419,41 +445,35 @@ export const InvoiceModal = ({
             </div>
           )}
 
-          {/* Download Buttons */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-gray-900 dark:text-white">
-              Download Invoices
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => handleDownload("billing")}
-                disabled={downloading === "billing"}
-                className="flex items-center space-x-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: colors.primary.dark }}
-              >
-                {downloading === "billing" ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                <span>Billing Invoice</span>
-              </button>
-
-              {type === "success" && (
-                <button
-                  onClick={() => handleDownload("repayment")}
-                  disabled={downloading === "repayment"}
-                  className="flex items-center space-x-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: colors.primary.medium }}
-                >
-                  {downloading === "repayment" ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  <span>Repayment Invoice</span>
-                </button>
-              )}
+          {/* Quick Action Summary */}
+          <div className="bg-blue-50 dark:bg-gray-800 rounded-lg p-4 border border-blue-200 dark:border-gray-600">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">
+                  📋 Invoice Ready!
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Your professional invoice is generated and ready for use
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                <div className="text-center px-3 py-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Status
+                  </div>
+                  <div className="text-sm font-bold text-green-600">
+                    ✅ Ready
+                  </div>
+                </div>
+                <div className="text-center px-3 py-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Format
+                  </div>
+                  <div className="text-sm font-bold text-blue-600">
+                    📄 A4 PDF
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

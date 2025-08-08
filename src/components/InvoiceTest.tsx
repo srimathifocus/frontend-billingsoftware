@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { JewelryInvoice } from "./JewelryInvoice";
 import { CompactInvoiceModal } from "./CompactInvoiceModal";
-import { FileText, Printer, Download, Settings } from "lucide-react";
+import { FileText, Download, Settings } from "lucide-react";
 
 const InvoiceTest: React.FC = () => {
   const [showModal, setShowModal] = useState(false);

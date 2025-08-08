@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { toast } from "react-toastify";
+import { useToast } from "../components/Toast";
 import { useAuth } from "./useAuth";
 
 interface UseAutoLogoutOptions {
@@ -12,9 +12,10 @@ export const useAutoLogout = ({
   warningDuration = 20 * 1000, // 20 seconds
 }: UseAutoLogoutOptions = {}) => {
   const { logout, isAuthenticated } = useAuth();
+  const toast = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const warningToastRef = useRef<any>(null);
+  const warningToastRef = useRef<string | null>(null);
 
   const clearTimeouts = useCallback(() => {
     if (timeoutRef.current) {
@@ -26,41 +27,46 @@ export const useAutoLogout = ({
       warningTimeoutRef.current = null;
     }
     if (warningToastRef.current) {
-      toast.dismiss(warningToastRef.current);
+      toast.hideToast(warningToastRef.current);
       warningToastRef.current = null;
     }
-  }, []);
+  }, [toast]);
 
   const handleLogout = useCallback(() => {
     clearTimeouts();
     logout();
-    toast.error("Session expired due to inactivity. Please login again.");
-  }, [logout, clearTimeouts]);
+    toast.error(
+      "Session Expired",
+      "Your session has expired due to inactivity. Please login again."
+    );
+  }, [logout, clearTimeouts, toast]);
 
   const showWarning = useCallback(() => {
     let countdown = Math.ceil(warningDuration / 1000);
 
     const updateToast = () => {
       if (countdown > 0) {
-        warningToastRef.current = toast.warning(
-          `You will be logged out in ${countdown} seconds due to inactivity. Move your mouse or click anywhere to stay logged in.`,
-          {
-            toastId: "logout-warning",
-            autoClose: false,
-            closeOnClick: false,
-            draggable: false,
-            hideProgressBar: false,
-            position: "top-center",
-            className: "logout-warning-toast",
-          }
+        // Hide previous warning toast if it exists
+        if (warningToastRef.current) {
+          toast.hideToast(warningToastRef.current);
+        }
+
+        // Show new warning toast with updated countdown
+        warningToastRef.current = toast.logout(
+          "Session Timeout Warning",
+          `You will be logged out in ${countdown} second${
+            countdown !== 1 ? "s" : ""
+          } due to inactivity. Move your mouse or click anywhere to stay logged in.`,
+          0 // Don't auto-close
         );
+
         countdown--;
         setTimeout(updateToast, 1000);
       }
     };
 
     updateToast();
-  }, [warningDuration]);
+  }, [warningDuration, toast]);
 
   const resetTimer = useCallback(() => {
     if (!isAuthenticated) return;
@@ -105,7 +111,7 @@ export const useAutoLogout = ({
     const resetOnActivity = () => {
       // Dismiss warning toast if it exists
       if (warningToastRef.current) {
-        toast.dismiss(warningToastRef.current);
+        toast.hideToast(warningToastRef.current);
         warningToastRef.current = null;
       }
       resetTimer();

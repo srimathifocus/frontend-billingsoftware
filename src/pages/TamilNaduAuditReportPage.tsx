@@ -244,14 +244,102 @@ export const TamilNaduAuditReportPage = () => {
     setExpandedSections(newExpanded);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!auditReport?.data) {
       toast.error("No report data available to download");
       return;
     }
 
-    // Create a printable version
-    window.print();
+    try {
+      toast.info("Generating Tamil Nadu Audit Report PDF...");
+
+      // Create query parameters for the PDF endpoint
+      const params = new URLSearchParams();
+      params.append("reportType", filters.reportType);
+
+      if (filters.reportType === "monthly" && filters.month && filters.year) {
+        params.append("month", filters.month.toString());
+        params.append("year", filters.year.toString());
+      } else if (filters.reportType === "yearly" && filters.year) {
+        params.append("year", filters.year.toString());
+      } else if (filters.reportType === "financial" && filters.year) {
+        params.append("year", filters.year.toString());
+      } else if (
+        filters.reportType === "custom" &&
+        filters.startDate &&
+        filters.endDate
+      ) {
+        params.append("startDate", filters.startDate);
+        params.append("endDate", filters.endDate);
+      }
+
+      // Call the backend PDF generation endpoint
+      const response = await api.get(
+        `/reports/audit/download?${params.toString()}`,
+        {
+          responseType: "blob",
+          headers: {
+            Accept: "application/pdf",
+          },
+        }
+      );
+
+      // Check if response is actually a PDF
+      if (response.data.type !== "application/pdf") {
+        console.error("Response is not a PDF:", response.data.type);
+        toast.error("Invalid PDF response from server");
+        return;
+      }
+
+      // Create blob and download
+      const blob = new Blob([response.data], {
+        type: "application/pdf",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Generate filename based on report type and period
+      let filename = "TamilNadu-Audit-Report";
+      if (filters.reportType === "monthly" && filters.month && filters.year) {
+        const monthName = months[filters.month - 1];
+        filename += `-${monthName}-${filters.year}`;
+      } else if (filters.reportType === "yearly" && filters.year) {
+        filename += `-${filters.year}`;
+      } else if (filters.reportType === "financial" && filters.year) {
+        filename += `-FY${filters.year}-${filters.year + 1}`;
+      } else if (
+        filters.reportType === "custom" &&
+        filters.startDate &&
+        filters.endDate
+      ) {
+        filename += `-${filters.startDate}-to-${filters.endDate}`;
+      }
+      filename += ".pdf";
+
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success("Tamil Nadu Audit Report downloaded successfully!");
+    } catch (error: any) {
+      console.error("Error downloading Tamil Nadu Audit Report:", error);
+
+      if (error.response?.status === 404) {
+        toast.error("Audit report PDF generation not available");
+      } else if (error.response?.status === 401) {
+        toast.error("Authentication failed. Please login again.");
+      } else {
+        toast.error("Failed to download audit report. Please try again.");
+      }
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -290,7 +378,6 @@ export const TamilNaduAuditReportPage = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-4">
-            
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Tamil Nadu Audit Report
