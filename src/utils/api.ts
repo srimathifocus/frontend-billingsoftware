@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV
-    ? "http://localhost:5000/api" // Local development fallback
+    ? "/api" // Use Vite proxy in development
     : "https://backend-billingsoftware.onrender.com/api"); // Production backend URL fallback
 
 // Debug logging

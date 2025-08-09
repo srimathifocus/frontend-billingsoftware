@@ -343,12 +343,10 @@ export const TamilNaduAuditReportPage = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
+    return `Rs.${new Intl.NumberFormat("en-IN", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount)}`;
   };
 
   const formatDate = (date: Date | string) => {
@@ -967,12 +965,13 @@ export const TamilNaduAuditReportPage = () => {
                   </div>
                 </div>
 
-                {/* Sample Loan Details */}
+                {/* Monthly Loan Details */}
                 {auditReport.data.loanRegisterDetails &&
                   auditReport.data.loanRegisterDetails.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-3">
-                        Sample Loan Details
+                        Monthly Loan Details (
+                        {auditReport.data.loanRegisterDetails.length} Records)
                       </h4>
                       <div className="overflow-x-auto">
                         <table className="min-w-full border border-gray-200 dark:border-gray-700">
@@ -991,7 +990,7 @@ export const TamilNaduAuditReportPage = () => {
                                 Weight (gm)
                               </th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b">
-                                Loan Amt (₹)
+                                Loan Amt (Rs.)
                               </th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b">
                                 Interest %
@@ -1002,9 +1001,8 @@ export const TamilNaduAuditReportPage = () => {
                             </tr>
                           </thead>
                           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {auditReport.data.loanRegisterDetails
-                              .slice(0, 5)
-                              .map((loan, index) => (
+                            {auditReport.data.loanRegisterDetails.map(
+                              (loan, index) => (
                                 <tr key={index}>
                                   <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                                     {loan.loanId}
@@ -1038,7 +1036,8 @@ export const TamilNaduAuditReportPage = () => {
                                     </span>
                                   </td>
                                 </tr>
-                              ))}
+                              )
+                            )}
                           </tbody>
                         </table>
                       </div>

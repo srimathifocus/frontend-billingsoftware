@@ -17,6 +17,8 @@ import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { colors, themeConfig } from "../theme/colors";
 import { useAuth } from "../hooks/useAuth";
+import { useLogo } from "../hooks/useLogo";
+import { LogoUpload } from "../components/Admin/LogoUpload";
 
 interface PasswordChangeFormData {
   currentPassword: string;
@@ -43,6 +45,7 @@ const updateProfile = async (data: ProfileUpdateFormData) => {
 export const AdminProfilePage = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
+  const { logoUrl, refreshLogo } = useLogo();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -148,114 +151,126 @@ export const AdminProfilePage = () => {
   const passStrength = passwordStrength(newPassword || "");
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-4 lg:p-6">
       <div className="flex items-center gap-4 mb-6">
-        {/* <button
-          onClick={() => navigate("/dashboard")}
-          className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button> */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Admin Profile
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage your admin account settings
+            Manage your admin account settings and shop logo
           </p>
         </div>
       </div>
 
-      {/* Current User Info */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-            <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+      {/* Top Section - Account Info & Logo Management */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Current User Info */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+              <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Account Information
+            </h2>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Account Information
-          </h2>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Name
-            </label>
-            {isEditingName ? (
-              <form
-                onSubmit={handleSubmitProfile(onProfileSubmit)}
-                className="space-y-3"
-              >
-                <input
-                  type="text"
-                  {...registerProfile("name", {
-                    required: "Name is required",
-                    minLength: {
-                      value: 2,
-                      message: "Name must be at least 2 characters",
-                    },
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="Enter your name"
-                  autoFocus
-                />
-                <div className="flex flex-col sm:flex-row gap-2">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Name
+              </label>
+              {isEditingName ? (
+                <form
+                  onSubmit={handleSubmitProfile(onProfileSubmit)}
+                  className="space-y-3"
+                >
+                  <input
+                    type="text"
+                    {...registerProfile("name", {
+                      required: "Name is required",
+                      minLength: {
+                        value: 2,
+                        message: "Name must be at least 2 characters",
+                      },
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="Enter your name"
+                    autoFocus
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="submit"
+                      disabled={updateProfileMutation.isPending}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updateProfileMutation.isPending ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingName(false);
+                        resetProfile({ name: user?.name || "" });
+                      }}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-900 dark:text-white font-medium">
+                    {user?.name || "Admin User"}
+                  </p>
                   <button
-                    type="submit"
-                    disabled={updateProfileMutation.isPending}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setIsEditingName(true)}
+                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
                   >
-                    {updateProfileMutation.isPending ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditingName(false);
-                      resetProfile({ name: user?.name || "" });
-                    }}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                  >
-                    Cancel
+                    Edit
                   </button>
                 </div>
-              </form>
-            ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {user?.name || "Admin User"}
+              )}
+              {profileErrors.name && (
+                <p className="text-red-500 text-sm mt-1">
+                  {profileErrors.name.message}
                 </p>
-                <button
-                  onClick={() => setIsEditingName(true)}
-                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
-                >
-                  Edit
-                </button>
-              </div>
-            )}
-            {profileErrors.name && (
-              <p className="text-red-500 text-sm mt-1">
-                {profileErrors.name.message}
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email
+              </label>
+              <p className="text-gray-900 dark:text-white font-medium">
+                {user?.email || "admin@example.com"}
               </p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Role
-            </label>
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-gray-900 dark:text-white capitalize font-medium">
-                {user?.role}
-              </span>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Role
+              </label>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-gray-900 dark:text-white capitalize font-medium">
+                  {user?.role}
+                </span>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Logo Management */}
+        <div>
+          <LogoUpload currentLogo={logoUrl} onUploadSuccess={refreshLogo} />
         </div>
       </div>
 
       {/* Password Change Form */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
             <Key className="h-5 w-5 text-green-600 dark:text-green-400" />
           </div>
@@ -264,7 +279,7 @@ export const AdminProfilePage = () => {
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Current Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -300,7 +315,7 @@ export const AdminProfilePage = () => {
           </div>
 
           {/* New Password Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 New Password *
@@ -416,7 +431,7 @@ export const AdminProfilePage = () => {
       </div>
 
       {/* Security Guidelines */}
-      <div className="mt-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+      <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
           <div>

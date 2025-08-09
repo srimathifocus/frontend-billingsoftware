@@ -6,6 +6,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "../hooks/useAuth.tsx";
+import { useLogo } from "../hooks/useLogo";
 import api from "../utils/api";
 import { colors, themeConfig } from "../theme/colors";
 
@@ -27,6 +28,7 @@ export const LoginPage = () => {
     password?: string;
   }>({});
   const { login, isAuthenticated } = useAuth();
+  const { logoUrl, hasLogo, loading: logoLoading } = useLogo();
 
   const {
     register,
@@ -182,11 +184,33 @@ export const LoginPage = () => {
         >
           {/* Header */}
           <div className="text-center mb-8">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4"
-              style={{ backgroundColor: colors.primary.medium }}
-            >
-              C
+            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
+              {hasLogo && logoUrl && !logoLoading ? (
+                <img
+                  src={logoUrl}
+                  alt="Shop Logo"
+                  className="w-full h-full object-cover rounded-2xl"
+                  onError={(e) => {
+                    // Fallback to "F" if logo fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.className =
+                        "w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4";
+                      parent.style.backgroundColor = colors.primary.medium;
+                      parent.textContent = "F";
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl"
+                  style={{ backgroundColor: colors.primary.medium }}
+                >
+                  F
+                </div>
+              )}
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Welcome Back!

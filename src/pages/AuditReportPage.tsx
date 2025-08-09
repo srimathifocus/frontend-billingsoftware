@@ -1179,11 +1179,10 @@ export const AuditReportPage = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
+    return `Rs.${new Intl.NumberFormat("en-IN", {
       minimumFractionDigits: 0,
-    }).format(amount);
+      maximumFractionDigits: 0,
+    }).format(amount)}`;
   };
 
   if (isLoading) {
@@ -1207,7 +1206,6 @@ export const AuditReportPage = () => {
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-         
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
               Audit Report
@@ -1924,7 +1922,7 @@ export const AuditReportPage = () => {
                             Item & Weight (gm)
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Loan Amt (INR)
+                            Loan Amt (Rs.)
                           </th>
                           <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Interest %

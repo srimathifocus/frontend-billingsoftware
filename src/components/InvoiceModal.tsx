@@ -18,6 +18,16 @@ import { PDFViewer } from "./PDFViewer";
 import { colors } from "../theme/colors";
 import { fetchShopDetails } from "../utils/api";
 
+// Get API base URL based on environment
+const getApiBaseUrl = () => {
+  return (
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV
+      ? "/api" // Use Vite proxy in development
+      : "https://backend-billingsoftware.onrender.com/api")
+  ); // Production backend URL
+};
+
 interface InvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -52,7 +62,7 @@ const downloadInvoice = async (
       type === "billing"
         ? `/invoice/loan/${loanId}/pdf`
         : `/invoice/repayment/${loanId}/pdf`;
-    const response = await fetch(`http://localhost:5000/api${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       headers: {
         Authorization: `Bearer ${sessionStorage.getItem("admin_token")}`,
       },
@@ -100,7 +110,7 @@ export const InvoiceModal = ({
         ? `/invoice/loan/${loanObjectId}/pdf`
         : `/invoice/repayment/${loanObjectId}/pdf`;
     const token = sessionStorage.getItem("admin_token");
-    return `http://localhost:5000/api${endpoint}?token=${token}&timestamp=${Date.now()}`;
+    return `${getApiBaseUrl()}${endpoint}?token=${token}&timestamp=${Date.now()}`;
   };
 
   // Fetch shop details and load PDF on component mount
