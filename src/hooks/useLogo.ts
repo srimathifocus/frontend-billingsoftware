@@ -7,6 +7,16 @@ interface LogoInfo {
   uploadedAt?: string;
 }
 
+// Get API base URL based on environment
+const getApiBaseUrl = () => {
+  return (
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV
+      ? "/api" // Use Vite proxy in development
+      : "https://backend-billingsoftware.onrender.com/api")
+  ); // Production backend URL
+};
+
 export const useLogo = () => {
   const [logoInfo, setLogoInfo] = useState<LogoInfo>({ hasLogo: false });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -14,14 +24,15 @@ export const useLogo = () => {
 
   const fetchLogoInfo = async () => {
     try {
-      const response = await fetch("/api/logo/info");
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/logo/info`);
       const data = await response.json();
       setLogoInfo(data);
 
       if (data.hasLogo) {
         // Create URL for logo with timestamp to prevent caching issues
         const timestamp = new Date().getTime();
-        setLogoUrl(`/api/logo/current?t=${timestamp}`);
+        setLogoUrl(`${apiBaseUrl}/logo/current?t=${timestamp}`);
       } else {
         setLogoUrl(null);
       }

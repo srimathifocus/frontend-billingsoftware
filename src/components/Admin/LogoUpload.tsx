@@ -2,6 +2,16 @@ import React, { useState, useRef } from "react";
 import { Upload, X, Check, AlertCircle } from "lucide-react";
 import { colors } from "../../theme/colors";
 
+// Get API base URL based on environment
+const getApiBaseUrl = () => {
+  return (
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV
+      ? "/api" // Use Vite proxy in development
+      : "https://backend-billingsoftware.onrender.com/api")
+  ); // Production backend URL
+};
+
 interface LogoUploadProps {
   onUploadSuccess?: () => void;
   currentLogo?: string | null;
@@ -45,7 +55,8 @@ export const LogoUpload: React.FC<LogoUploadProps> = ({
       formData.append("logo", file);
 
       const token = sessionStorage.getItem("admin_token");
-      const response = await fetch("/api/logo/upload", {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/logo/upload`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -75,7 +86,8 @@ export const LogoUpload: React.FC<LogoUploadProps> = ({
     setUploading(true);
     try {
       const token = sessionStorage.getItem("admin_token");
-      const response = await fetch("/api/logo/delete", {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/logo/delete`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
